@@ -875,9 +875,12 @@ function HiringPage({ roles, setRoles }) {
                 onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="none"; }}
               >
                 <div style={{fontSize:"0.93rem",fontWeight:isActive?500:400,color:isActive?T.white:T.text,marginBottom:"0.29rem",lineHeight:1.3}}>{role.title}</div>
-                <div style={{display:"flex",alignItems:"center",gap:"0.43rem"}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:sc.color,display:"inline-block",flexShrink:0}}/>
-                  <span style={{fontSize:"0.79rem",color:T.muted}}>{role.hiringManager||"No HM"}</span>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"0.43rem"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"0.43rem"}}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:sc.color,display:"inline-block",flexShrink:0}}/>
+                    <span style={{fontSize:"0.79rem",color:T.muted}}>{role.hiringManager||"No HM"}</span>
+                  </div>
+                  {role.prio && <Chip label={role.prio} color={PRIO[role.prio]?.color} bg={PRIO[role.prio]?.bg} small sz={9} />}
                 </div>
               </div>
             );
