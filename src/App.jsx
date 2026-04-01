@@ -830,6 +830,7 @@ function HiringPage({ roles, setRoles }) {
   const [activeId,  setActiveId]  = useState(null);
   const [showAdd,   setShowAdd]   = useState(false);
   const [newTitle,  setNewTitle]  = useState("");
+  const [sortBy,    setSortBy]    = useState("prio");
 
   const active = roles.find(r => r.id === activeId) || null;
 
@@ -844,15 +845,34 @@ function HiringPage({ roles, setRoles }) {
     setNewTitle(""); setShowAdd(false);
   }
 
+  const PRIO_SORT = { High:0, Med:1, Low:2, "":3 };
+  const sortedRoles = [...roles].sort((a,b) => {
+    if (sortBy === "hm")   return (a.hiringManager||"").localeCompare(b.hiringManager||"");
+    if (sortBy === "job")  return a.title.localeCompare(b.title);
+    if (sortBy === "prio") return (PRIO_SORT[a.prio]??3) - (PRIO_SORT[b.prio]??3);
+    return 0;
+  });
+
   return (
     <div style={{display:"flex",height:"100%",gap:0}}>
-      <div style={{width:"15.7rem",flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{width:"15.7rem",flexShrink:0,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",height:"100%",background:T.surface}}>
         <div style={{padding:"0.86rem 1rem",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:"0.79rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Open Roles</span>
-          <button onClick={()=>setShowAdd(v=>!v)} style={{fontSize:"1.14rem",lineHeight:1,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}
-            onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
-            onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
-          >+</button>
+          <div style={{display:"flex",gap:"0.36rem",alignItems:"center"}}>
+            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{
+              fontSize:"0.72rem", background:T.card, border:`1px solid ${T.border}`,
+              borderRadius:"0.36rem", color:T.dim, padding:"2px 6px",
+              fontFamily:T.mono, cursor:"pointer", outline:"none",
+            }}>
+              <option value="hm">HM</option>
+              <option value="job">Job</option>
+              <option value="prio">Priority</option>
+            </select>
+            <button onClick={()=>setShowAdd(v=>!v)} style={{fontSize:"1.14rem",lineHeight:1,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
+            >+</button>
+          </div>
         </div>
         {showAdd && (
           <div style={{padding:"0.71rem 1rem",borderBottom:`1px solid ${T.border}`}}>
@@ -866,7 +886,7 @@ function HiringPage({ roles, setRoles }) {
           </div>
         )}
         <div style={{flex:1,overflowY:"auto"}}>
-          {roles.map(role => {
+          {sortedRoles.map(role => {
             const sc = ROLE_STATUS_COLORS[role.status] || {color:T.dim};
             const isActive = role.id === activeId;
             return (
