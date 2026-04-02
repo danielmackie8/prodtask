@@ -548,12 +548,18 @@ function BoardPage({ tasks, setTasks }) {
   );
 }
 
+const AI_MSGS_KEY = "talin_ai_msgs";
+const DEFAULT_AI_MSGS = [{role:"assistant", text:"Hi! I can help manage your board.\n\n• Good morning\n• List all tasks\n• What's waiting?\n• HM action points"}];
+
 function AiPage({ tasks, setTasks, roles }) {
-  const [msgs, setMsgs] = useState([{role:"assistant", text:"Hi! I can help manage your board.\n\n• List all tasks\n• What's waiting?\n• Add a task\n• HM action points"}]);
+  const [msgs, setMsgs] = useState(() => {
+    try { const v = localStorage.getItem(AI_MSGS_KEY); return v ? JSON.parse(v) : DEFAULT_AI_MSGS; } catch { return DEFAULT_AI_MSGS; }
+  });
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef();
   useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [msgs]);
+  useEffect(() => { try { localStorage.setItem(AI_MSGS_KEY, JSON.stringify(msgs.slice(-50))); } catch {} }, [msgs]);
 
   async function send() {
     const msg = input.trim();
@@ -706,13 +712,17 @@ function AiPage({ tasks, setTasks, roles }) {
         </div>}
         <div ref={bottomRef}/>
       </div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:"0.5rem",marginBottom:"0.86rem"}}>
+      <div style={{display:"flex",flexWrap:"wrap",gap:"0.5rem",marginBottom:"0.86rem",alignItems:"center"}}>
         {["Good morning","List all tasks","What's waiting?","HM action points"].map(c=>(
           <button key={c} onClick={()=>setInput(c)} style={{fontSize:"0.79rem",padding:"0.36rem 0.86rem",borderRadius:20,background:T.card,border:`1px solid ${T.border}`,color:T.dim,cursor:"pointer",fontFamily:T.font}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
           >{c}</button>
         ))}
+        <button onClick={()=>setMsgs(DEFAULT_AI_MSGS)} style={{fontSize:"0.79rem",padding:"0.36rem 0.86rem",borderRadius:20,background:"none",border:`1px solid ${T.border}`,color:T.muted,cursor:"pointer",fontFamily:T.font,marginLeft:"auto"}}
+          onMouseEnter={e=>{e.currentTarget.style.borderColor="#f06292";e.currentTarget.style.color="#f06292";}}
+          onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.muted;}}
+        >Clear chat</button>
       </div>
       <div style={{display:"flex",gap:"0.71rem"}}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}
@@ -925,7 +935,7 @@ function HiringPage({ roles, setRoles }) {
             }}>
               <option value="hm">HM</option>
               <option value="job">Job</option>
-              <option value="prio">Priority</option>
+              <option value="prio">Prio</option>
             </select>
             <button onClick={()=>setShowAdd(v=>!v)} style={{fontSize:"1.14rem",lineHeight:1,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
