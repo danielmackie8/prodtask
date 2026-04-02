@@ -590,21 +590,28 @@ function AiPage({ tasks, setTasks, roles }) {
       ].join("\n");
 
       const orKey = import.meta.env.VITE_OPENROUTER_KEY;
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "Authorization": `Bearer ${orKey}`},
-        body: JSON.stringify({
-          model: "stepfun/step-3.5-flash:free",
-          messages: [
-            {role:"system", content: sys},
-            {role:"user", content: msg},
-          ],
-          max_tokens: 1024,
-        }),
-      });
-      const data = await res.json();
-      const raw = data?.choices?.[0]?.message?.content || "";
-      if (!raw) throw new Error(data?.error?.message || "Empty response");
+      const models = ["stepfun/step-3.5-flash:free", "nvidia/llama-3.1-nemotron-nano-8b-instruct:free"];
+      let raw = "";
+      for (const model of models) {
+        try {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "Authorization": `Bearer ${orKey}`},
+            body: JSON.stringify({
+              model,
+              messages: [
+                {role:"system", content: sys},
+                {role:"user", content: msg},
+              ],
+              max_tokens: 1024,
+            }),
+          });
+          const data = await res.json();
+          raw = data?.choices?.[0]?.message?.content || "";
+          if (raw) break; // success — stop trying
+        } catch(_) { continue; }
+      }
+      if (!raw) throw new Error("All providers failed, please try again.");
       let result = {message: raw, actions:[]};
       try {
         const cleaned = raw.replace(/```json\s*/gi,"").replace(/```\s*/g,"").trim();
