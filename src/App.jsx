@@ -633,7 +633,7 @@ function AiPage({ tasks, setTasks, roles }) {
                   {role:"system", content: sys},
                   {role:"user", content: msg},
                 ],
-                max_tokens: 1024,
+                max_tokens: 2048,
               }),
             });
             const data = await res.json();
@@ -652,10 +652,17 @@ function AiPage({ tasks, setTasks, roles }) {
           const parsed = JSON.parse(cleaned.slice(s, e+1));
           if (parsed.message) parsed.message = parsed.message.replace(/\\n/g, "\n");
           result = parsed;
+        } else if (s>-1) {
+          // JSON was truncated — try to extract just the message field
+          const msgMatch = cleaned.match(/"message"\s*:\s*"([\s\S]*?)(?:"\s*,|\s*"\s*}|$)/);
+          if (msgMatch) {
+            result.message = msgMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
+          } else {
+            result.message = cleaned.replace(/^[^a-zA-Z]+/, "").slice(0, 1000);
+          }
         }
       } catch(_){}
-      // If message still looks like raw JSON, show a friendly fallback
-      if (result.message.trim().startsWith("{")) {
+      if (!result.message || result.message.trim().startsWith("{")) {
         result.message = "Sorry, I had trouble formatting that response. Please try again.";
       }
       const actions = Array.isArray(result.actions) ? result.actions : [];
