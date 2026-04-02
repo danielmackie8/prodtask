@@ -969,7 +969,7 @@ function HiringPage({ roles, setRoles }) {
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"0.43rem"}}>
                   <div style={{display:"flex",alignItems:"center",gap:"0.43rem"}}>
                     <span style={{width:6,height:6,borderRadius:"50%",background:sc.color,display:"inline-block",flexShrink:0}}/>
-                    <span style={{fontSize:"0.79rem",color:T.muted}}>{role.hiringManager||"No HM"}</span>
+                    <span style={{fontSize:"0.79rem",color:T.textSoft}}>{role.hiringManager||"No HM"}</span>
                   </div>
                   {role.prio && <Chip label={role.prio} color={PRIO[role.prio]?.color} bg={PRIO[role.prio]?.bg} small sz={9} />}
                 </div>
