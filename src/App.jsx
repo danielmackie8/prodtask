@@ -365,11 +365,18 @@ function ChipRow({ task, due, done, total }) {
 }
 
 function getDueDateStyle(dueDate) {
+  if (!dueDate) return null;
   const today = new Date(); today.setHours(0,0,0,0);
   const due = new Date(dueDate);
-  if (due < today)  return { color:"#f06292", bg:"rgba(240,98,146,0.15)", label:"Overdue" };
-  if (due.getTime()===today.getTime()) return { color:"#f5a623", bg:"rgba(245,166,35,0.15)", label:"Today" };
-  return { color:"#4f8ef7", bg:"rgba(79,142,247,0.15)", label: due.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) };
+  if (isNaN(due.getTime())) return null;
+  due.setHours(0,0,0,0);
+  const diff = Math.round((due - today) / (1000 * 60 * 60 * 24));
+  if (diff < 0)   return { color:"#f06292", bg:"rgba(240,98,146,0.15)", label:"Overdue" };
+  if (diff === 0) return { color:"#f5a623", bg:"rgba(245,166,35,0.15)", label:"Today" };
+  if (diff === 1) return { color:"#f5a623", bg:"rgba(245,166,35,0.12)", label:"Tomorrow" };
+  if (diff <= 7)  return { color:"#4f8ef7", bg:"rgba(79,142,247,0.15)", label:"This Week" };
+  if (diff <= 14) return { color:"#4f8ef7", bg:"rgba(79,142,247,0.10)", label:"Next Week" };
+  return null;
 }
 
 function TaskCard({ task, onClick }) {
