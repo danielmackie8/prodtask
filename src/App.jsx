@@ -562,7 +562,22 @@ function AiPage({ tasks, setTasks, roles }) {
     setBusy(true);
     setMsgs(p => [...p, {role:"user", text:msg}]);
     try {
-      const summary = tasks.map(t => `- "${t.title}" | Column: ${t.column} | Priority: ${t.prio||"None"} | Time: ${t.time||"None"} | Status: ${t.status||"Me"} | ID: ${t.id}`).join("\n") || "No tasks yet.";
+      const today = new Date(); today.setHours(0,0,0,0);
+      const summary = tasks.map(t => {
+        const apDone = (t.actionPoints||[]).filter(a=>a.done).length;
+        const apTotal = (t.actionPoints||[]).length;
+        const notesCount = (t.notes||[]).length;
+        const daysOld = Math.round((Date.now() - t.createdAt) / (1000*60*60*24));
+        const dueStr = t.dueDate ? (() => {
+          const due = new Date(t.dueDate); due.setHours(0,0,0,0);
+          const diff = Math.round((due - today) / (1000*60*60*24));
+          if (diff < 0) return `OVERDUE by ${Math.abs(diff)}d`;
+          if (diff === 0) return "due TODAY";
+          if (diff === 1) return "due TOMORROW";
+          return `due in ${diff}d`;
+        })() : "no due date";
+        return `- "${t.title}" | Column: ${t.column} | Priority: ${t.prio||"None"} | Time: ${t.time||"None"} | Status: ${t.status||"Me"} | Due: ${dueStr} | Actions: ${apDone}/${apTotal} done | Notes: ${notesCount} | Age: ${daysOld}d | ID: ${t.id}`;
+      }).join("\n") || "No tasks yet.";
       const hmSummary = (roles||[]).map(r => {
         const open = (r.actionPoints||[]).filter(a=>!a.done);
         if (!open.length) return null;
@@ -572,17 +587,26 @@ function AiPage({ tasks, setTasks, roles }) {
         "You are a helpful assistant managing a Kanban task board and hiring pipeline. Always respond in valid JSON: {message:string, actions:[]}",
         "The 'message' field must be friendly, clear, and well-formatted plain text. Never use pipe characters or raw data formats.",
         "FORMATTING RULES:",
+        "- GOOD MORNING GREETING: If the user says 'good morning', 'goodmorning', 'morning' or similar, respond with a warm personalised greeting, then structure your response exactly as follows:",
+        "  1. A 2-3 sentence summary of where to focus today — mention overdue/today tasks, high priority items, and anything stale.",
+        "  2. '📋 Due Today' section — list all To Do tasks with due date TODAY or OVERDUE. If none, say 'Nothing due today in To Do.'",
+        "  3. '⏳ Waiting' section — list ALL tasks in the Waiting column grouped by '⏳ Waiting on Candidate' and '⏳ Waiting on Stakeholder'. Show each task with priority.",
+        "  4. '👤 HM Action Points' section — list all outstanding HM action points grouped by role. If none, say 'No outstanding HM actions.'",
         "- When listing all tasks: group them by column using headers like '📋 To Do', '⏳ Waiting', '📅 Weekly', '✅ Complete'. Under each header list the tasks as a numbered list. e.g: '1. Review Q2 candidates — High priority, 1h'",
         "- When listing waiting tasks: show two sections — '⏳ Waiting on Candidate' and '⏳ Waiting on Stakeholder', each with their tasks listed underneath. If a section is empty, omit it.",
         "- When asked about Hiring Manager action points: group by role using headers like '👤 Senior Engineer', list each outstanding action point underneath as a numbered list. End with a summary e.g. '3 outstanding action points across 2 roles.'",
         "- Always end list responses with a short summary line.",
         "- For simple confirmations (add/move/delete), keep the message to one short sentence.",
+        "- Use the Age field to flag tasks that have been in To Do or Waiting for more than 7 days.",
+        "- Use the Due field to highlight overdue tasks or tasks due today/tomorrow.",
+        "- Use Actions (done/total) to flag tasks with incomplete action points.",
         "CURRENT BOARD TASKS (use ONLY these):",
         summary,
         "HIRING MANAGER — OUTSTANDING ACTION POINTS (use ONLY these):",
         hmSummary,
         "Valid columns: Weekly, To Do, Waiting, Complete",
         "Valid priorities: Low, Med, High | Valid times: 15m, 30m, 1h, 2h, 4h",
+        "Due dates are in YYYY-MM-DD format. When mentioning due dates in responses, describe them naturally e.g. 'due 14 Apr' or 'overdue'.",
         "Valid statuses: Me, Waiting on Candidate, Waiting on Stakeholder",
         "Action types: {type:add,task:{title,column,prio,time,status}} | {type:move,id,column} | {type:update,id,fields} | {type:delete,id}",
         "Defaults: column=To Do, prio=Med, time=30m, status=Me. If status is Waiting on Candidate or Waiting on Stakeholder, set column=Waiting.",
@@ -652,7 +676,8 @@ function AiPage({ tasks, setTasks, roles }) {
       }
       setMsgs(p => [...p, {role:"assistant", text:result.message||"Done."}]);
     } catch(e) {
-      setMsgs(p => [...p, {role:"assistant", text:"Error: "+e.message}]);
+      console.error("AI error:", e);
+      setMsgs(p => [...p, {role:"assistant", text:"⚠️ "+e.message, retry:true, retryMsg:msg}]);
     } finally {
       setBusy(false);
     }
@@ -667,7 +692,17 @@ function AiPage({ tasks, setTasks, roles }) {
             color:T.text,borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",
             padding:"0.86rem 1.14rem",fontSize:"0.93rem",lineHeight:1.65,
             border:`1px solid ${m.role==="user"?"#4f8ef733":T.border}`,
-            whiteSpace:"pre-wrap",fontFamily:T.font}}>{m.text}</div>
+            whiteSpace:"pre-wrap",fontFamily:T.font}}>
+            {m.text}
+            {m.retry && (
+              <div style={{marginTop:"0.57rem"}}>
+                <button onClick={()=>{ setInput(m.retryMsg); }}
+                  style={{fontSize:"0.79rem",padding:"0.29rem 0.71rem",borderRadius:20,background:"rgba(79,142,247,0.15)",border:"1px solid rgba(79,142,247,0.4)",color:"#4f8ef7",cursor:"pointer",fontFamily:T.font}}>
+                  ↺ Retry
+                </button>
+              </div>
+            )}
+          </div>
         ))}
         {busy&&<div style={{alignSelf:"flex-start",background:T.card,border:`1px solid ${T.borderHi}`,borderRadius:"14px 14px 14px 4px",padding:"0.86rem 1.14rem",display:"flex",alignItems:"center",gap:"0.57rem"}}>
           <span style={{display:"flex",gap:4}}>{[0,1,2].map(i=><span key={i} style={{width:6,height:6,borderRadius:"50%",background:"#4f8ef7",display:"inline-block",animation:`pulse 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}</span>
@@ -677,7 +712,7 @@ function AiPage({ tasks, setTasks, roles }) {
         <div ref={bottomRef}/>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"0.5rem",marginBottom:"0.86rem"}}>
-        {["List all tasks","What's waiting?","Add a task","HM action points"].map(c=>(
+        {["Good morning","List all tasks","What's waiting?","HM action points"].map(c=>(
           <button key={c} onClick={()=>setInput(c)} style={{fontSize:"0.79rem",padding:"0.36rem 0.86rem",borderRadius:20,background:T.card,border:`1px solid ${T.border}`,color:T.dim,cursor:"pointer",fontFamily:T.font}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
