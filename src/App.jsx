@@ -928,15 +928,17 @@ function HiringPage({ roles, setRoles }) {
         <div style={{padding:"0.86rem 1rem",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <span style={{fontSize:"0.79rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Open Roles</span>
           <div style={{display:"flex",gap:"0.36rem",alignItems:"center"}}>
-            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{
-              fontSize:"0.72rem", background:T.card, border:`1px solid ${T.border}`,
-              borderRadius:"0.36rem", color:T.dim, padding:"2px 6px",
-              fontFamily:T.mono, cursor:"pointer", outline:"none",
-            }}>
-              <option value="hm">HM</option>
-              <option value="job">Job</option>
-              <option value="prio">Prio</option>
-            </select>
+            <div style={{display:"flex",gap:2,background:T.bg,borderRadius:"0.36rem",border:`1px solid ${T.border}`,padding:2}}>
+              {[["hm","HM"],["job","Job"],["prio","Prio"]].map(([val,label])=>(
+                <button key={val} onClick={()=>setSortBy(val)} style={{
+                  fontSize:"0.65rem", fontWeight:600, fontFamily:T.mono,
+                  padding:"2px 7px", borderRadius:"0.25rem", border:"none",
+                  cursor:"pointer", transition:"all .15s",
+                  background: sortBy===val ? "#4f8ef7" : "transparent",
+                  color: sortBy===val ? T.bg : T.muted,
+                }}>{label}</button>
+              ))}
+            </div>
             <button onClick={()=>setShowAdd(v=>!v)} style={{fontSize:"1.14rem",lineHeight:1,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center"}}
               onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
               onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
