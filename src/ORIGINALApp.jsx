@@ -551,7 +551,7 @@ function BoardPage({ tasks, setTasks }) {
 const AI_MSGS_KEY = "talin_ai_msgs";
 const DEFAULT_AI_MSGS = [{role:"assistant", text:"Hi! I can help manage your board.\n\n• Good morning\n• List all tasks\n• What's waiting?\n• HM action points"}];
 
-function AiPage({ tasks, setTasks, roles, notes }) {
+function AiPage({ tasks, setTasks, roles }) {
   const [msgs, setMsgs] = useState(() => {
     try { const v = localStorage.getItem(AI_MSGS_KEY); return v ? JSON.parse(v) : DEFAULT_AI_MSGS; } catch { return DEFAULT_AI_MSGS; }
   });
@@ -589,13 +589,6 @@ function AiPage({ tasks, setTasks, roles, notes }) {
         if (!open.length) return null;
         return `Role: ${r.title} (${r.status}, HM: ${r.hiringManager||"None"})\n` + open.map(a=>`  - ${a.text}`).join("\n");
       }).filter(Boolean).join("\n\n") || "No outstanding HM action points.";
-      const notesSummary = (notes||[]).map(n => {
-        if (!(n.entries||[]).length) return null;
-        const entriesText = n.entries.map(e =>
-          `  [${new Date(e.date).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}]\n  ${e.text}`
-        ).join("\n\n");
-        return `Note: "${n.title}" | Tag: ${n.tag||"None"}\n${entriesText}`;
-      }).filter(Boolean).join("\n\n---\n\n") || "No notes yet.";
       const sys = [
         "You are a helpful assistant managing a Kanban task board and hiring pipeline. Always respond in valid JSON: {message:string, actions:[]}",
         "The 'message' field must be friendly, clear, and well-formatted plain text. Never use pipe characters or raw data formats.",
@@ -613,14 +606,10 @@ function AiPage({ tasks, setTasks, roles, notes }) {
         "- Use the Age field to flag tasks that have been in To Do or Waiting for more than 7 days.",
         "- Use the Due field to highlight overdue tasks or tasks due today/tomorrow.",
         "- Use Actions (done/total) to flag tasks with incomplete action points.",
-        "- When asked about notes or meetings (e.g. 'what happened in my last weekly meeting', 'what did we discuss in my last 121'), find the most recent relevant entry from ALL NOTES and summarise it clearly with the date.",
-        "- When asked about notes, always mention which note title and date the entry is from.",
         "CURRENT BOARD TASKS (use ONLY these):",
         summary,
         "HIRING MANAGER — OUTSTANDING ACTION POINTS (use ONLY these):",
         hmSummary,
-        "ALL NOTES (meeting logs, 121s, team syncs etc — use ONLY these):",
-        notesSummary,
         "Valid columns: Weekly, To Do, Waiting, Complete",
         "Valid priorities: Low, Med, High | Valid times: 15m, 30m, 1h, 2h, 4h",
         "Due dates are in YYYY-MM-DD format. When mentioning due dates in responses, describe them naturally e.g. 'due 14 Apr' or 'overdue'.",
@@ -758,7 +747,7 @@ function openLink(url) {
   try { window.open(url.startsWith("http")?url:"https://"+url,"_blank"); } catch(_){}
 }
 
-function RoleDetail({ role, onUpdate, onDelete, onClose }) {
+function RoleDetail({ role, onUpdate, onDelete }) {
   const [title,       setTitle]       = useState(role.title);
   const [status,      setStatus]      = useState(role.status);
   const [hm,          setHm]          = useState(role.hiringManager);
@@ -806,10 +795,7 @@ function RoleDetail({ role, onUpdate, onDelete, onClose }) {
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"0.86rem",marginBottom:"0.86rem"}}>
           <input value={title} onChange={e=>setTitle(e.target.value)} onBlur={()=>blur({title})}
             style={{fontSize:"1.29rem",fontWeight:600,background:"transparent",border:"none",color:T.white,flex:1,outline:"none",padding:0,fontFamily:T.font}}/>
-          <div style={{display:"flex",gap:"0.43rem",flexShrink:0}}>
-            <button onClick={()=>onDelete(role.id)} style={{fontSize:"0.86rem",color:"#f06292",background:"transparent",border:"1px solid #f0629244",borderRadius:"0.5rem",padding:"0.36rem 0.86rem",cursor:"pointer",fontFamily:T.font}}>Delete</button>
-            <button onClick={onClose} style={{fontSize:"1rem",color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.36rem 0.57rem",cursor:"pointer",lineHeight:1}}>✕</button>
-          </div>
+          <button onClick={()=>onDelete(role.id)} style={{fontSize:"0.86rem",color:"#f06292",background:"transparent",border:"1px solid #f0629244",borderRadius:"0.5rem",padding:"0.36rem 0.86rem",cursor:"pointer",fontFamily:T.font,flexShrink:0}}>Delete</button>
         </div>
         <div style={{display:"flex",gap:"0.86rem",flexWrap:"wrap"}}>
           <div>
@@ -1005,10 +991,7 @@ function HiringPage({ roles, setRoles }) {
 }
 
 const TASKS_KEY = "talin_tasks";
-const ROLES_KEY  = "talin_roles";
-const NOTES_KEY  = "talin_notes";
-
-const NOTE_TAGS = ["Team Sync","Onboarding","Business Updates","Training","Other"];
+const ROLES_KEY = "talin_roles";
 
 const DEFAULT_TASKS = [
   {id:"t1",title:"Review Q2 candidates",       column:"To Do",   prio:"High", time:"1h",  status:"Me",                     notes:[],actionPoints:[],createdAt:Date.now()},
@@ -1026,136 +1009,6 @@ const DEFAULT_ROLES = [
   {id:uid(),title:"Frontend Developer", status:"Closed",      hiringManager:"James Moore", prio:"Med", strategyDoc:"",actionPoints:[],updates:[]},
 ];
 
-const DEFAULT_NOTES = [];
-
-const NOTE_TAG_COLORS = {
-  "Team Sync":        { color:"#4f8ef7", bg:"rgba(79,142,247,0.15)"  },
-  "Onboarding":       { color:"#f5a623", bg:"rgba(245,166,35,0.15)"  },
-  "Business Updates": { color:"#c084fc", bg:"rgba(192,132,252,0.15)" },
-  "Training":         { color:"#4caf86", bg:"rgba(76,175,134,0.15)"  },
-  "Other":            { color:"#6b7aa1", bg:"rgba(107,122,161,0.15)" },
-};
-
-function NoteDetail({ note, onUpdate, onDelete, onClose }) {
-  const [title,    setTitle]    = useState(note.title);
-  const [tag,      setTag]      = useState(note.tag||"");
-  const [entries,  setEntries]  = useState(note.entries||[]);
-  const [newEntry, setNewEntry] = useState("");
-  const [editingId, setEditingId] = useState(null);
-  const [editText,  setEditText]  = useState("");
-  const tc = NOTE_TAG_COLORS[tag] || { color:"#6b7aa1", bg:"rgba(107,122,161,0.15)" };
-
-  function save(patch) {
-    onUpdate({...note, title, tag, entries, ...patch});
-  }
-
-  function addEntry() {
-    if (!newEntry.trim()) return;
-    const next = [{id:uid(), text:newEntry.trim(), date:Date.now()}, ...entries];
-    setEntries(next);
-    setNewEntry("");
-    save({entries:next});
-  }
-
-  function saveEdit(id) {
-    const next = entries.map(e => e.id===id ? {...e, text:editText} : e);
-    setEntries(next);
-    setEditingId(null);
-    save({entries:next});
-  }
-
-  function deleteEntry(id) {
-    const next = entries.filter(e => e.id!==id);
-    setEntries(next);
-    save({entries:next});
-  }
-
-  return (
-    <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-      <div style={{ padding:"1rem 1.43rem", background:`linear-gradient(135deg,${T.card},${tc.bg})`, borderBottom:`2px solid ${tc.color}`, flexShrink:0 }}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:"0.86rem",marginBottom:"0.86rem"}}>
-          <input value={title} onChange={e=>setTitle(e.target.value)} onBlur={()=>save({title})}
-            style={{fontSize:"1.29rem",fontWeight:600,background:"transparent",border:"none",color:T.white,flex:1,outline:"none",padding:0,fontFamily:T.font}}
-            placeholder="Note title..."/>
-          <div style={{display:"flex",gap:"0.43rem",flexShrink:0}}>
-            <button onClick={()=>onDelete(note.id)} style={{fontSize:"0.86rem",color:"#f06292",background:"transparent",border:"1px solid #f0629244",borderRadius:"0.5rem",padding:"0.36rem 0.86rem",cursor:"pointer",fontFamily:T.font}}>Delete</button>
-            <button onClick={onClose} style={{fontSize:"1rem",color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.36rem 0.57rem",cursor:"pointer",lineHeight:1}}>✕</button>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:"0.86rem",alignItems:"center",flexWrap:"wrap"}}>
-          <div>
-            <div style={{fontSize:"0.72rem",color:T.muted,marginBottom:"0.29rem",textTransform:"uppercase",letterSpacing:"0.07em",fontFamily:T.mono}}>Tag</div>
-            <select value={tag} onChange={e=>{setTag(e.target.value);save({tag:e.target.value});}}
-              style={{fontSize:"0.86rem",background:tc.bg,border:`1px solid ${tc.color}55`,borderRadius:20,color:tc.color,padding:"0.29rem 0.86rem",fontFamily:T.mono,fontWeight:600,cursor:"pointer",outline:"none"}}>
-              <option value="" style={{background:T.bg,color:T.text}}>No tag</option>
-              {NOTE_TAGS.map(t=><option key={t} value={t} style={{background:T.bg,color:T.text}}>{t}</option>)}
-            </select>
-          </div>
-          <div>
-            <div style={{fontSize:"0.72rem",color:T.muted,marginBottom:"0.29rem",textTransform:"uppercase",letterSpacing:"0.07em",fontFamily:T.mono}}>Entries</div>
-            <div style={{fontSize:"0.86rem",color:T.textSoft,fontFamily:T.mono}}>{entries.length}</div>
-          </div>
-        </div>
-      </div>
-
-      <div style={{flex:1,overflowY:"auto",padding:"1.43rem",display:"flex",flexDirection:"column",gap:"1rem"}}>
-        {/* Add new entry */}
-        <div>
-          <div style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono,marginBottom:"0.57rem"}}>
-            New entry — {new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}
-          </div>
-          <textarea value={newEntry} onChange={e=>setNewEntry(e.target.value)}
-            placeholder="Type your notes for this session..."
-            rows={4}
-            style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.57rem",color:T.text,padding:"0.86rem 1rem",fontFamily:T.font,fontSize:"0.93rem",lineHeight:1.7,outline:"none",resize:"vertical",boxSizing:"border-box"}}
-            onFocus={e=>e.target.style.borderColor="#4f8ef7"}
-            onBlur={e=>e.target.style.borderColor=T.border}
-            onKeyDown={e=>{if(e.key==="Enter"&&e.metaKey)addEntry();}}
-          />
-          <div style={{display:"flex",justifyContent:"flex-end",marginTop:"0.43rem"}}>
-            <button onClick={addEntry} style={{fontSize:"0.86rem",fontWeight:600,padding:"0.36rem 1rem",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:"0.43rem",cursor:"pointer",fontFamily:T.font}}>Save entry</button>
-          </div>
-        </div>
-
-        {/* Past entries */}
-        {entries.length>0 && (
-          <div>
-            <div style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono,marginBottom:"0.57rem"}}>Past entries</div>
-            <div style={{display:"flex",flexDirection:"column",gap:"0.86rem"}}>
-              {entries.map(entry=>(
-                <div key={entry.id} style={{background:T.bg,border:`1px solid ${T.border}`,borderLeft:`3px solid ${tc.color}`,borderRadius:"0.57rem",padding:"0.86rem 1rem"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}}>
-                    <span style={{fontSize:"0.72rem",color:T.muted,fontFamily:T.mono}}>{new Date(entry.date).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span>
-                    <div style={{display:"flex",gap:"0.43rem"}}>
-                      <button onClick={()=>{setEditingId(entry.id);setEditText(entry.text);}} style={{fontSize:"0.72rem",color:T.dim,background:"none",border:"none",cursor:"pointer",padding:0}}>Edit</button>
-                      <button onClick={()=>deleteEntry(entry.id)} style={{fontSize:"0.72rem",color:"#f06292",background:"none",border:"none",cursor:"pointer",padding:0}}>Delete</button>
-                    </div>
-                  </div>
-                  {editingId===entry.id ? (
-                    <div>
-                      <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={4}
-                        style={{width:"100%",background:T.card,border:`1px solid ${T.borderHi}`,borderRadius:"0.43rem",color:T.text,padding:"0.57rem 0.71rem",fontFamily:T.font,fontSize:"0.93rem",lineHeight:1.7,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
-                      <div style={{display:"flex",gap:"0.43rem",marginTop:"0.43rem",justifyContent:"flex-end"}}>
-                        <button onClick={()=>setEditingId(null)} style={{fontSize:"0.79rem",padding:"0.25rem 0.71rem",background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",fontFamily:T.font}}>Cancel</button>
-                        <button onClick={()=>saveEdit(entry.id)} style={{fontSize:"0.79rem",padding:"0.25rem 0.71rem",background:"#4f8ef7",border:"none",borderRadius:"0.36rem",color:T.bg,cursor:"pointer",fontFamily:T.font}}>Save</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{fontSize:"0.93rem",color:T.textSoft,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{entry.text}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {entries.length===0 && (
-          <div style={{fontSize:"0.86rem",color:T.muted,fontStyle:"italic",textAlign:"center",paddingTop:"1rem"}}>No entries yet — add your first note above</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function loadFromStorage(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
@@ -1165,15 +1018,9 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [tasks,   setTasks]   = useState(() => loadFromStorage(TASKS_KEY, DEFAULT_TASKS));
   const [roles,   setRoles]   = useState(() => loadFromStorage(ROLES_KEY, DEFAULT_ROLES));
-  const [notes,   setNotes]   = useState(() => loadFromStorage(NOTES_KEY, DEFAULT_NOTES));
-  const [activeRoleId, setActiveRoleId] = useState(null);
-  const [activeNoteId, setActiveNoteId] = useState(null);
-  const [sortBy, setSortBy] = useState("prio");
-  const [noteFilterTag, setNoteFilterTag] = useState("");
 
   useEffect(() => { try { localStorage.setItem(TASKS_KEY, JSON.stringify(tasks)); } catch {} }, [tasks]);
   useEffect(() => { try { localStorage.setItem(ROLES_KEY, JSON.stringify(roles)); } catch {} }, [roles]);
-  useEffect(() => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch {} }, [notes]);
 
   const safeTasks = tasks.filter(Boolean);
   const stats = [
@@ -1183,26 +1030,10 @@ export default function App() {
     {label:"Complete", val:safeTasks.filter(t=>t.column==="Complete").length},
   ];
 
-  const activeRole = roles.find(r => r.id === activeRoleId) || null;
-  const activeNote = notes.find(n => n.id === activeNoteId) || null;
-
-  function updateRole(updated) { setRoles(p => p.map(r => r.id === updated.id ? updated : r)); }
-  function deleteRole(id) { setRoles(p => p.filter(r => r.id !== id)); setActiveRoleId(null); }
-
-  function updateNote(updated) { setNotes(p => p.map(n => n.id === updated.id ? updated : n)); }
-  function deleteNote(id) { setNotes(p => p.filter(n => n.id !== id)); setActiveNoteId(null); }
-
-  const PRIO_SORT = { High:0, Med:1, Low:2, "":3 };
-  const sortedRoles = [...roles].sort((a,b) => {
-    if (sortBy === "hm") return (a.hiringManager||"").localeCompare(b.hiringManager||"");
-    return (PRIO_SORT[a.prio]??3) - (PRIO_SORT[b.prio]??3);
-  });
-
   return (
     <div style={{ fontFamily:T.font, height:"100vh", background:T.bg, color:T.text, display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } :root { font-size: clamp(10px, 1.05vw, 14px); } select, input, textarea, button { font-size: inherit; }`}</style>
 
-      {/* Nav */}
       <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 1.4rem", height:"3.4rem", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:"1.43rem" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"0.57rem" }}>
@@ -1210,7 +1041,7 @@ export default function App() {
             <span style={{ fontSize:"1rem", fontWeight:600, color:T.white, letterSpacing:"-0.02em" }}>TALIN</span>
           </div>
           <div style={{ display:"flex", gap:2 }}>
-            {[["board","Board"],["ai","AI Assistant"]].map(([k,l])=>(
+            {[["board","Board"],["hiring","Hiring Manager"],["ai","AI Assistant"]].map(([k,l])=>(
               <button key={k} onClick={()=>setPage(k)} style={{ fontSize:"0.86rem", fontWeight: page===k?600:400, color: page===k?"#4f8ef7":T.dim, background: page===k?"rgba(79,142,247,0.12)":"none", border: page===k?"1px solid rgba(79,142,247,0.3)":"1px solid transparent", borderRadius:"0.5rem", padding:"0.36rem 1rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>{l}</button>
             ))}
           </div>
@@ -1224,6 +1055,7 @@ export default function App() {
               </div>
             ))}
           </div>
+
           {page==="board" && (
             <button onClick={()=>setShowAdd(true)} style={{ fontSize:"0.86rem", fontWeight:600, padding:"0.5rem 1.14rem", background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)", color:T.bg, border:"none", borderRadius:"0.5rem", cursor:"pointer", fontFamily:T.font, letterSpacing:"0.02em", transition:"opacity .15s" }}
               onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
@@ -1233,150 +1065,14 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content */}
-      {page==="ai" && (
-        <div style={{ flex:1, minHeight:0, overflowY:"auto", padding:"1.43rem" }}>
-          <AiPage tasks={safeTasks} setTasks={setTasks} roles={roles} notes={notes}/>
-        </div>
-      )}
-
-      {page==="board" && (
-        <div style={{ flex:1, minHeight:0, display:"flex", overflow:"hidden" }}>
-
-          {/* Role sidebar */}
-          <div style={{ width:"16rem", flexShrink:0, background:T.surface, borderRight:`1px solid ${T.border}`, display:"flex", flexDirection:"column" }}>
-
-            {/* All Notes link */}
-            <div style={{ borderBottom:`1px solid ${T.border}`, flexShrink:0 }}>
-              <div onClick={()=>{setActiveNoteId("__list__");setActiveRoleId(null);}}
-                style={{ padding:"0.65rem 0.86rem", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"space-between",
-                  background: activeNoteId ? "rgba(79,142,247,0.08)" : "none",
-                  borderLeft: activeNoteId ? "2px solid #4f8ef7" : "2px solid transparent",
-                  transition:"all .12s" }}
-                onMouseEnter={e=>{ if(!activeNoteId) e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}
-                onMouseLeave={e=>{ if(!activeNoteId) e.currentTarget.style.background="none"; }}
-              >
-                <span style={{ fontSize:"0.65rem", fontWeight:600, color: activeNoteId ? "#4f8ef7" : T.dim, textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:T.mono }}>All Notes</span>
-                <span style={{ fontSize:"0.65rem", color:T.muted, fontFamily:T.mono }}>{notes.length}</span>
-              </div>
-            </div>
-
-            {/* Roles section */}
-            <div style={{ padding:"0.65rem 0.86rem", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-              <span style={{ fontSize:"0.65rem", fontWeight:600, color:T.dim, textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:T.mono }}>Roles</span>
-              <div style={{display:"flex",gap:2,background:T.bg,borderRadius:"0.29rem",border:`1px solid ${T.border}`,padding:2}}>
-                {[["prio","Prio"],["hm","HM"]].map(([val,label])=>(
-                  <button key={val} onClick={()=>setSortBy(val)} style={{ fontSize:"0.57rem", fontWeight:600, fontFamily:T.mono, padding:"2px 6px", borderRadius:"0.2rem", border:"none", cursor:"pointer", transition:"all .15s", background: sortBy===val ? "#4f8ef7" : "transparent", color: sortBy===val ? T.bg : T.muted }}>{label}</button>
-                ))}
-              </div>
-            </div>
-            <div style={{ flex:1, overflowY:"auto" }}>
-              {sortedRoles.map(role => {
-                const sc = ROLE_STATUS_COLORS[role.status] || {color:T.dim};
-                const isActive = role.id === activeRoleId;
-                return (
-                  <div key={role.id} onClick={()=>setActiveRoleId(isActive ? null : role.id)}
-                    style={{ padding:"0.65rem 0.86rem", borderBottom:`1px solid ${T.border}`, cursor:"pointer", borderLeft: isActive?"2px solid #4f8ef7":"2px solid transparent", background: isActive?"rgba(79,142,247,0.08)":"none", transition:"all .12s" }}
-                    onMouseEnter={e=>{ if(!isActive) e.currentTarget.style.background="rgba(255,255,255,0.03)"; }}
-                    onMouseLeave={e=>{ if(!isActive) e.currentTarget.style.background="none"; }}
-                  >
-                    <div style={{ fontSize:"0.86rem", fontWeight: isActive?500:400, color: isActive?T.white:T.text, marginBottom:"0.22rem", lineHeight:1.3 }}>{role.title}</div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:"0.36rem" }}>
-                        <span style={{ width:5,height:5,borderRadius:"50%",background:sc.color,display:"inline-block",flexShrink:0 }}/>
-                        <span style={{ fontSize:"0.72rem", color:T.textSoft }}>{role.hiringManager||"No HM"}</span>
-                      </div>
-                      {role.prio && <Chip label={role.prio} color={PRIO[role.prio]?.color} bg={PRIO[role.prio]?.bg} small sz={8} />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ padding:"0.65rem 0.86rem", borderTop:`1px solid ${T.border}` }}>
-              <button onClick={()=>{
-                const nr = {id:uid(),title:"New Role",status:"Open",hiringManager:"",prio:"Med",strategyDoc:"",actionPoints:[],updates:[]};
-                setRoles(p=>[...p,nr]);
-                setActiveRoleId(nr.id);
-              }} style={{ width:"100%", fontSize:"0.79rem", color:T.muted, background:"none", border:`1px dashed ${T.border}`, borderRadius:"0.43rem", padding:"0.5rem 0", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.muted;}}
-              >+ Add role</button>
-            </div>
-          </div>
-
-          {/* Board area with slide-over */}
-          <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
-            <div style={{ height:"100%", overflowY:"auto", padding:"1.43rem", display:"flex", justifyContent:"center" }}>
-              <div style={{ width:"100%", maxWidth:"72rem" }}>
-                <BoardPage tasks={safeTasks} setTasks={setTasks}/>
-              </div>
-            </div>
-
-            {/* Slide-over overlay */}
-            {(activeRole || activeNoteId) && (
-              <div style={{ position:"absolute", inset:0, background:"rgba(8,10,18,0.65)", zIndex:100, display:"flex", justifyContent:"flex-end" }}
-                onClick={()=>{setActiveRoleId(null);setActiveNoteId(null);}}>
-                <div onClick={e=>e.stopPropagation()} style={{ width:"60%", height:"100%", background:T.surface, borderLeft:`1px solid ${T.border}`, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-                  {activeRole && <RoleDetail key={activeRole.id} role={activeRole} onUpdate={updateRole} onDelete={deleteRole} onClose={()=>setActiveRoleId(null)}/>}
-                  {activeNoteId && activeNoteId!=="__list__" && activeNote && (
-                    <NoteDetail key={activeNote.id} note={activeNote} onUpdate={updateNote} onDelete={deleteNote} onClose={()=>setActiveNoteId("__list__")}/>
-                  )}
-                  {activeNoteId==="__list__" && (
-                    <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-                      {/* Notes list header */}
-                      <div style={{padding:"1rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.card,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                        <span style={{fontSize:"1.07rem",fontWeight:600,color:T.white}}>All Notes</span>
-                        <div style={{display:"flex",gap:"0.57rem",alignItems:"center"}}>
-                          <select value={noteFilterTag} onChange={e=>setNoteFilterTag(e.target.value)} style={{fontSize:"0.79rem",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.text,padding:"0.29rem 0.57rem",fontFamily:T.font,cursor:"pointer",outline:"none"}}>
-                            <option value="">All tags</option>
-                            {NOTE_TAGS.map(t=><option key={t} value={t}>{t}</option>)}
-                          </select>
-                          <button onClick={()=>{
-                            const n={id:uid(),title:"",tag:"",content:"",createdAt:Date.now()};
-                            setNotes(p=>[n,...p]);
-                            setActiveNoteId(n.id);
-                          }} style={{fontSize:"0.86rem",fontWeight:600,padding:"0.29rem 0.86rem",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:"0.36rem",cursor:"pointer",fontFamily:T.font}}>+ New note</button>
-                          <button onClick={()=>setActiveNoteId(null)} style={{fontSize:"1rem",color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.29rem 0.5rem",cursor:"pointer",lineHeight:1}}>✕</button>
-                        </div>
-                      </div>
-                      {/* Notes table */}
-                      <div style={{flex:1,overflowY:"auto"}}>
-                        {/* Table header */}
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 0.4fr 0.5fr",padding:"0.57rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.bg}}>
-                          <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Title</span>
-                          <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Tag</span>
-                          <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Date</span>
-                        </div>
-                        {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).length===0 && (
-                          <div style={{padding:"2rem 1.43rem",fontSize:"0.93rem",color:T.muted,fontStyle:"italic",textAlign:"center"}}>No notes yet — click "+ New note" to get started</div>
-                        )}
-                        {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).map(note=>{
-                          const tc = NOTE_TAG_COLORS[note.tag] || null;
-                          return (
-                            <div key={note.id} onClick={()=>setActiveNoteId(note.id)}
-                              style={{display:"grid",gridTemplateColumns:"1fr 0.4fr 0.5fr",padding:"0.79rem 1.43rem",borderBottom:`1px solid ${T.border}`,cursor:"pointer",transition:"background .12s",alignItems:"center"}}
-                              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
-                              onMouseLeave={e=>e.currentTarget.style.background="none"}
-                            >
-                              <span style={{fontSize:"0.93rem",color:T.text,fontWeight:500}}>{note.title||"Untitled"}</span>
-                              <span>{tc ? <span style={{fontSize:"0.72rem",fontWeight:600,padding:"2px 8px",borderRadius:10,background:tc.bg,color:tc.color,fontFamily:T.mono,textTransform:"uppercase",letterSpacing:"0.03em"}}>{note.tag}</span> : <span style={{fontSize:"0.79rem",color:T.muted}}>—</span>}</span>
-                              <span style={{fontSize:"0.79rem",color:T.muted,fontFamily:T.mono}}>{new Date(note.createdAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {showAdd && (
-              <AddModal onClose={()=>setShowAdd(false)} onAdd={t=>{setTasks(p=>[...p,t]);setShowAdd(false);}}/>
-            )}
-          </div>
-        </div>
-      )}
+      <div style={{ flex:1, minHeight:0, overflowY:"auto", position:"relative", padding: page==="hiring" ? 0 : page==="ai" ? "1.43rem" : "1.43rem" }}>
+        {page==="board" && <BoardPage tasks={safeTasks} setTasks={setTasks}/>}
+        {page==="hiring" && <HiringPage roles={roles} setRoles={setRoles}/>}
+        {page==="ai" && <AiPage tasks={safeTasks} setTasks={setTasks} roles={roles}/>}
+        {showAdd && page==="board" && (
+          <AddModal onClose={()=>setShowAdd(false)} onAdd={t=>{setTasks(p=>[...p,t]);setShowAdd(false);}}/>
+        )}
+      </div>
     </div>
   );
 }
