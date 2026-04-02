@@ -590,26 +590,34 @@ function AiPage({ tasks, setTasks, roles }) {
       ].join("\n");
 
       const orKey = import.meta.env.VITE_OPENROUTER_KEY;
-      const models = ["stepfun/step-3.5-flash:free", "nvidia/llama-3.1-nemotron-nano-8b-instruct:free"];
+      const models = [
+        "stepfun/step-3.5-flash:free",
+        "nvidia/llama-3.1-nemotron-nano-8b-instruct:free",
+        "meta-llama/llama-4-scout:free",
+      ];
       let raw = "";
       for (const model of models) {
-        try {
-          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {"Content-Type": "application/json", "Authorization": `Bearer ${orKey}`},
-            body: JSON.stringify({
-              model,
-              messages: [
-                {role:"system", content: sys},
-                {role:"user", content: msg},
-              ],
-              max_tokens: 1024,
-            }),
-          });
-          const data = await res.json();
-          raw = data?.choices?.[0]?.message?.content || "";
-          if (raw) break; // success — stop trying
-        } catch(_) { continue; }
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 1500));
+            const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {"Content-Type": "application/json", "Authorization": `Bearer ${orKey}`},
+              body: JSON.stringify({
+                model,
+                messages: [
+                  {role:"system", content: sys},
+                  {role:"user", content: msg},
+                ],
+                max_tokens: 1024,
+              }),
+            });
+            const data = await res.json();
+            raw = data?.choices?.[0]?.message?.content || "";
+            if (raw) break;
+          } catch(_) { continue; }
+        }
+        if (raw) break;
       }
       if (!raw) throw new Error("All providers failed, please try again.");
       let result = {message: raw, actions:[]};
