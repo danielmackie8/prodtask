@@ -374,8 +374,15 @@ function getDueDateStyle(dueDate) {
   if (diff < 0)   return { color:"#f06292", bg:"rgba(240,98,146,0.15)", label:"Overdue" };
   if (diff === 0) return { color:"#f5a623", bg:"rgba(245,166,35,0.15)", label:"Today" };
   if (diff === 1) return { color:"#f5a623", bg:"rgba(245,166,35,0.12)", label:"Tomorrow" };
-  if (diff <= 7)  return { color:"#4f8ef7", bg:"rgba(79,142,247,0.15)", label:"This Week" };
-  if (diff <= 14) return { color:"#4f8ef7", bg:"rgba(79,142,247,0.10)", label:"Next Week" };
+  // Get start of this week (Monday)
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon...
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const nextMonday = new Date(monday); nextMonday.setDate(monday.getDate() + 7);
+  const nextFriday = new Date(monday); nextFriday.setDate(monday.getDate() + 11);
+  if (due >= monday && due <= friday) return { color:"#4f8ef7", bg:"rgba(79,142,247,0.15)", label:"This Week" };
+  if (due >= nextMonday && due <= nextFriday) return { color:"#4f8ef7", bg:"rgba(79,142,247,0.10)", label:"Next Week" };
   return null;
 }
 
