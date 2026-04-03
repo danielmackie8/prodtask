@@ -40,6 +40,15 @@ function uid() { return Math.random().toString(36).slice(2,9); }
 function fmtDate(d) {
   return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
 }
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return mobile;
+}
 
 const PRIO_RANK = { High:0, Med:1, Low:2, "":3 };
 const TIME_RANK = { "15m":0, "30m":1, "1h":2, "2h":3, "4h":4, "":5 };
@@ -1156,11 +1165,244 @@ function NoteDetail({ note, onUpdate, onDelete, onClose }) {
   );
 }
 
+function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
+  const [page, setPage] = useState("board");
+  const [colIdx, setColIdx] = useState(0);
+  const [showAdd, setShowAdd] = useState(false);
+  const [activeRoleId, setActiveRoleId] = useState(null);
+  const [activeNoteId, setActiveNoteId] = useState(null);
+  const [noteFilterTag, setNoteFilterTag] = useState("");
+  const touchStartX = useRef(null);
+  const safeTasks = tasks.filter(Boolean);
+  const COLS = ["To Do","Waiting","Weekly","Complete"];
+  const activeRole = roles.find(r=>r.id===activeRoleId)||null;
+  const activeNote = notes.find(n=>n.id===activeNoteId)||null;
+
+  function updateRole(updated) { setRoles(p=>p.map(r=>r.id===updated.id?updated:r)); }
+  function deleteRole(id) { setRoles(p=>p.filter(r=>r.id!==id)); setActiveRoleId(null); }
+  function updateNote(updated) { setNotes(p=>p.map(n=>n.id===updated.id?updated:n)); }
+  function deleteNote(id) { setNotes(p=>p.filter(n=>n.id!==id)); setActiveNoteId(null); }
+
+  const PRIO_SORT = {High:0,Med:1,Low:2,"":3};
+  const sortedRoles = [...roles].sort((a,b)=>(PRIO_SORT[a.prio]??3)-(PRIO_SORT[b.prio]??3));
+
+  const NAV = [
+    {id:"board", icon:"⬚", label:"Board"},
+    {id:"roles", icon:"◈", label:"Roles"},
+    {id:"notes", icon:"≡", label:"Notes"},
+    {id:"ai",    icon:"✦", label:"AI"},
+  ];
+
+  // Swipe handlers for board columns
+  function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
+  function onTouchEnd(e) {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) setColIdx(i => Math.min(i+1, COLS.length-1));
+    else setColIdx(i => Math.max(i-1, 0));
+    touchStartX.current = null;
+  }
+
+  const COL_COLORS = {
+    "To Do":   {accent:"#f5a623", light:"rgba(245,166,35,0.12)"},
+    "Waiting": {accent:"#f06292", light:"rgba(240,98,146,0.12)"},
+    "Weekly":  {accent:"#4f8ef7", light:"rgba(79,142,247,0.12)"},
+    "Complete":{accent:"#4caf86", light:"rgba(76,175,134,0.12)"},
+  };
+
+  const colTasks = sortTasks(safeTasks.filter(t=>t.column===COLS[colIdx]), COLS[colIdx]);
+
+  return (
+    <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;} select,input,textarea,button{font-size:inherit;font-family:inherit;}`}</style>
+
+      {/* Top bar */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"env(safe-area-inset-top, 12px) 16px 10px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <div style={{width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7"}}/>
+          <span style={{fontSize:16,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
+        </div>
+        {page==="board" && (
+          <button onClick={()=>setShowAdd(true)} style={{fontSize:12,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
+        )}
+      </div>
+
+      {/* BOARD PAGE */}
+      {page==="board" && (
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          {/* Column pills */}
+          <div style={{padding:"8px 12px 6px",borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,overflowX:"auto",flexShrink:0}}>
+            {COLS.map((col,i)=>{
+              const cc = COL_COLORS[col];
+              const count = safeTasks.filter(t=>t.column===col).length;
+              return (
+                <button key={col} onClick={()=>setColIdx(i)} style={{fontSize:11,fontWeight:700,padding:"4px 12px",borderRadius:12,border:`1px solid ${i===colIdx?cc.accent+"66":"#2a3045"}`,background:i===colIdx?cc.light:"transparent",color:i===colIdx?cc.accent:"#6b7aa1",whiteSpace:"nowrap",cursor:"pointer",flexShrink:0}}>
+                  {col} {count}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Peeking columns */}
+          <div style={{flex:1,display:"flex",gap:6,padding:"10px 12px",overflow:"hidden"}}
+            onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            {/* Main column */}
+            <div style={{flex:"0 0 78%",background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+              <div style={{padding:"8px 10px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+                <div style={{width:7,height:7,borderRadius:"50%",background:COL_COLORS[COLS[colIdx]].accent}}/>
+                <span style={{fontSize:12,fontWeight:600,color:T.white}}>{COLS[colIdx]}</span>
+                <span style={{fontSize:10,fontFamily:T.mono,fontWeight:600,padding:"1px 5px",borderRadius:3,background:COL_COLORS[COLS[colIdx]].light,color:COL_COLORS[COLS[colIdx]].accent}}>{colTasks.length}</span>
+              </div>
+              <div style={{flex:1,overflowY:"auto",padding:8}}>
+                {colTasks.map(task=>{
+                  const due = getDueDateStyle(task.dueDate);
+                  return (
+                    <div key={task.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px",marginBottom:6}}>
+                      <div style={{fontSize:12,fontWeight:500,color:T.white,marginBottom:5,lineHeight:1.3}}>{task.title}</div>
+                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                        {task.prio && <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:3,background:PRIO[task.prio]?.bg,color:PRIO[task.prio]?.color,textTransform:"uppercase",fontFamily:T.mono}}>{task.prio}</span>}
+                        {task.time && <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:3,background:"rgba(79,142,247,0.15)",color:"#4f8ef7",textTransform:"uppercase",fontFamily:T.mono}}>{task.time}</span>}
+                        {due && <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:3,background:due.bg,color:due.color,textTransform:"uppercase",fontFamily:T.mono}}>{due.label}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+                {COLS[colIdx]!=="Complete" && (
+                  <button onClick={()=>setShowAdd(true)} style={{width:"100%",border:"1px dashed #2a3045",borderRadius:8,padding:10,textAlign:"center",fontSize:11,color:"#4a5578",background:"none",cursor:"pointer",marginTop:2}}>+ Add task</button>
+                )}
+              </div>
+            </div>
+
+            {/* Peek columns */}
+            {COLS.filter((_,i)=>i!==colIdx).slice(0,2).map(col=>(
+              <div key={col} onClick={()=>setColIdx(COLS.indexOf(col))} style={{flex:"0 0 9%",background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",opacity:0.55,cursor:"pointer"}}>
+                <span style={{fontSize:8,fontWeight:700,writingMode:"vertical-rl",color:COL_COLORS[col].accent,letterSpacing:"0.06em",textTransform:"uppercase"}}>{col}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ROLES PAGE */}
+      {page==="roles" && !activeRoleId && (
+        <div style={{flex:1,overflowY:"auto"}}>
+          {sortedRoles.map(role=>{
+            const sc = ROLE_STATUS_COLORS[role.status]||{color:T.dim};
+            return (
+              <div key={role.id} onClick={()=>setActiveRoleId(role.id)}
+                style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}
+                onTouchStart={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
+                onTouchEnd={e=>e.currentTarget.style.background="none"}
+              >
+                <div>
+                  <div style={{fontSize:14,fontWeight:500,color:T.white,marginBottom:4}}>{role.title}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{width:6,height:6,borderRadius:"50%",background:sc.color,display:"inline-block"}}/>
+                    <span style={{fontSize:12,color:T.textSoft}}>{role.hiringManager||"No HM"}</span>
+                    <span style={{fontSize:10,color:T.muted,fontFamily:T.mono}}>{role.status}</span>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {role.prio && <span style={{fontSize:9,fontWeight:700,padding:"2px 7px",borderRadius:3,background:PRIO[role.prio]?.bg,color:PRIO[role.prio]?.color,fontFamily:T.mono,textTransform:"uppercase"}}>{role.prio}</span>}
+                  <span style={{fontSize:16,color:"#2a3045"}}>›</span>
+                </div>
+              </div>
+            );
+          })}
+          <div style={{padding:"12px 16px"}}>
+            <button onClick={()=>{const nr={id:uid(),title:"New Role",status:"Open",hiringManager:"",prio:"Med",strategyDoc:"",actionPoints:[],updates:[]};setRoles(p=>[...p,nr]);setActiveRoleId(nr.id);}} style={{width:"100%",border:"1px dashed #2a3045",borderRadius:10,padding:12,textAlign:"center",fontSize:13,color:"#4a5578",background:"none",cursor:"pointer"}}>+ Add role</button>
+          </div>
+        </div>
+      )}
+      {page==="roles" && activeRoleId && activeRole && (
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{padding:"10px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10,flexShrink:0,background:T.surface}}>
+            <button onClick={()=>setActiveRoleId(null)} style={{fontSize:13,color:"#4f8ef7",background:"none",border:"none",cursor:"pointer",padding:0}}>‹ Roles</button>
+          </div>
+          <div style={{flex:1,overflowY:"auto"}}>
+            <RoleDetail key={activeRole.id} role={activeRole} onUpdate={updateRole} onDelete={deleteRole} onClose={()=>setActiveRoleId(null)}/>
+          </div>
+        </div>
+      )}
+
+      {/* NOTES PAGE */}
+      {page==="notes" && !activeNoteId && (
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{padding:"8px 14px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0,background:T.surface}}>
+            <select value={noteFilterTag} onChange={e=>setNoteFilterTag(e.target.value)} style={{fontSize:12,background:T.bg,border:`1px solid ${T.border}`,borderRadius:6,color:T.text,padding:"4px 8px",cursor:"pointer",outline:"none"}}>
+              <option value="">All tags</option>
+              {NOTE_TAGS.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+            <button onClick={()=>{const n={id:uid(),title:"",tag:"",entries:[],createdAt:Date.now()};setNotes(p=>[n,...p]);setActiveNoteId(n.id);}} style={{fontSize:12,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ New</button>
+          </div>
+          <div style={{flex:1,overflowY:"auto"}}>
+            {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).map(note=>{
+              const tc = NOTE_TAG_COLORS[note.tag]||null;
+              return (
+                <div key={note.id} onClick={()=>setActiveNoteId(note.id)}
+                  style={{padding:"12px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer"}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:500,color:T.white,marginBottom:4}}>{note.title||"Untitled"}</div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      {tc && <span style={{fontSize:9,fontWeight:700,padding:"1px 7px",borderRadius:8,background:tc.bg,color:tc.color,fontFamily:T.mono,textTransform:"uppercase"}}>{note.tag}</span>}
+                      <span style={{fontSize:11,color:T.muted,fontFamily:T.mono}}>{(note.entries||[]).length} entries</span>
+                    </div>
+                  </div>
+                  <span style={{fontSize:16,color:"#2a3045"}}>›</span>
+                </div>
+              );
+            })}
+            {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).length===0 && (
+              <div style={{padding:"2rem",textAlign:"center",fontSize:13,color:T.muted,fontStyle:"italic"}}>No notes yet</div>
+            )}
+          </div>
+        </div>
+      )}
+      {page==="notes" && activeNoteId && activeNote && (
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{padding:"10px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10,flexShrink:0,background:T.surface}}>
+            <button onClick={()=>setActiveNoteId(null)} style={{fontSize:13,color:"#4f8ef7",background:"none",border:"none",cursor:"pointer",padding:0}}>‹ Notes</button>
+          </div>
+          <div style={{flex:1,overflowY:"auto"}}>
+            <NoteDetail key={activeNote.id} note={activeNote} onUpdate={updateNote} onDelete={deleteNote} onClose={()=>setActiveNoteId(null)}/>
+          </div>
+        </div>
+      )}
+
+      {/* AI PAGE */}
+      {page==="ai" && (
+        <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"1rem"}}>
+          <AiPage tasks={safeTasks} setTasks={setTasks} roles={roles} notes={notes}/>
+        </div>
+      )}
+
+      {/* Bottom pill nav */}
+      <div style={{background:T.surface,borderTop:`1px solid ${T.border}`,padding:"8px 16px env(safe-area-inset-bottom, 12px)",display:"flex",justifyContent:"center",flexShrink:0}}>
+        <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:28,padding:"4px 5px",display:"flex",gap:2,boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+          {NAV.map(n=>(
+            <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);}} style={{padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",background:page===n.id?"rgba(79,142,247,0.15)":"transparent",display:"flex",alignItems:"center",gap:5,transition:"all .15s"}}>
+              <span style={{fontSize:13,color:page===n.id?"#4f8ef7":"#4a5578"}}>{n.icon}</span>
+              {page===n.id && <span style={{fontSize:11,fontWeight:600,color:"#4f8ef7"}}>{n.label}</span>}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Add task modal */}
+      {showAdd && (
+        <AddModal onClose={()=>setShowAdd(false)} onAdd={t=>{setTasks(p=>[...p,t]);setShowAdd(false);}}/>
+      )}
+    </div>
+  );
+}
+
 function loadFromStorage(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [page,    setPage]    = useState("board");
   const [showAdd, setShowAdd] = useState(false);
   const [tasks,   setTasks]   = useState(() => loadFromStorage(TASKS_KEY, DEFAULT_TASKS));
@@ -1170,10 +1412,16 @@ export default function App() {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [sortBy, setSortBy] = useState("prio");
   const [noteFilterTag, setNoteFilterTag] = useState("");
+  const [noteSort, setNoteSort] = useState("manual");
+  const noteDragging = useRef(null);
 
   useEffect(() => { try { localStorage.setItem(TASKS_KEY, JSON.stringify(tasks)); } catch {} }, [tasks]);
   useEffect(() => { try { localStorage.setItem(ROLES_KEY, JSON.stringify(roles)); } catch {} }, [roles]);
   useEffect(() => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch {} }, [notes]);
+
+  if (isMobile) {
+    return <MobileApp tasks={tasks} setTasks={setTasks} roles={roles} setRoles={setRoles} notes={notes} setNotes={setNotes}/>;
+  }
 
   const safeTasks = tasks.filter(Boolean);
   const stats = [
@@ -1332,7 +1580,7 @@ export default function App() {
                             {NOTE_TAGS.map(t=><option key={t} value={t}>{t}</option>)}
                           </select>
                           <button onClick={()=>{
-                            const n={id:uid(),title:"",tag:"",content:"",createdAt:Date.now()};
+                            const n={id:uid(),title:"",tag:"",content:"",entries:[],createdAt:Date.now()};
                             setNotes(p=>[n,...p]);
                             setActiveNoteId(n.id);
                           }} style={{fontSize:"0.86rem",fontWeight:600,padding:"0.29rem 0.86rem",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:"0.36rem",cursor:"pointer",fontFamily:T.font}}>+ New note</button>
@@ -1342,22 +1590,48 @@ export default function App() {
                       {/* Notes table */}
                       <div style={{flex:1,overflowY:"auto"}}>
                         {/* Table header */}
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 0.4fr 0.5fr",padding:"0.57rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.bg}}>
+                        <div style={{display:"grid",gridTemplateColumns:"0.3fr 1fr 0.4fr 0.5fr",padding:"0.57rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.bg,userSelect:"none"}}>
+                          <span/>
                           <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Title</span>
-                          <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Tag</span>
+                          <span onClick={()=>setNoteSort(s=>s==="tag"?"manual":"tag")} style={{fontSize:"0.72rem",fontWeight:600,color:noteSort==="tag"?"#4f8ef7":T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                            Tag {noteSort==="tag" ? "↑" : ""}
+                          </span>
                           <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Date</span>
                         </div>
                         {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).length===0 && (
                           <div style={{padding:"2rem 1.43rem",fontSize:"0.93rem",color:T.muted,fontStyle:"italic",textAlign:"center"}}>No notes yet — click "+ New note" to get started</div>
                         )}
-                        {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).map(note=>{
+                        {(noteSort==="tag"
+                          ? [...notes].sort((a,b)=>(a.tag||"").localeCompare(b.tag||""))
+                          : notes
+                        ).filter(n=>!noteFilterTag||n.tag===noteFilterTag).map((note,i,arr)=>{
                           const tc = NOTE_TAG_COLORS[note.tag] || null;
                           return (
-                            <div key={note.id} onClick={()=>setActiveNoteId(note.id)}
-                              style={{display:"grid",gridTemplateColumns:"1fr 0.4fr 0.5fr",padding:"0.79rem 1.43rem",borderBottom:`1px solid ${T.border}`,cursor:"pointer",transition:"background .12s",alignItems:"center"}}
+                            <div key={note.id}
+                              draggable={noteSort==="manual"}
+                              onDragStart={()=>{ noteDragging.current=note.id; }}
+                              onDragOver={e=>{ e.preventDefault(); }}
+                              onDrop={()=>{
+                                if (!noteDragging.current || noteDragging.current===note.id) return;
+                                setNotes(prev => {
+                                  const next = [...prev];
+                                  const fromIdx = next.findIndex(n=>n.id===noteDragging.current);
+                                  const toIdx   = next.findIndex(n=>n.id===note.id);
+                                  const [item] = next.splice(fromIdx,1);
+                                  next.splice(toIdx,0,item);
+                                  return next;
+                                });
+                                noteDragging.current=null;
+                              }}
+                              onClick={()=>setActiveNoteId(note.id)}
+                              style={{display:"grid",gridTemplateColumns:"0.3fr 1fr 0.4fr 0.5fr",padding:"0.79rem 1.43rem",borderBottom:`1px solid ${T.border}`,cursor:"pointer",transition:"background .12s",alignItems:"center"}}
                               onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.03)"}
                               onMouseLeave={e=>e.currentTarget.style.background="none"}
                             >
+                              {noteSort==="manual"
+                                ? <span style={{color:T.muted,fontSize:"0.86rem",cursor:"grab",textAlign:"center"}}>⠿</span>
+                                : <span/>
+                              }
                               <span style={{fontSize:"0.93rem",color:T.text,fontWeight:500}}>{note.title||"Untitled"}</span>
                               <span>{tc ? <span style={{fontSize:"0.72rem",fontWeight:600,padding:"2px 8px",borderRadius:10,background:tc.bg,color:tc.color,fontFamily:T.mono,textTransform:"uppercase",letterSpacing:"0.03em"}}>{note.tag}</span> : <span style={{fontSize:"0.79rem",color:T.muted}}>—</span>}</span>
                               <span style={{fontSize:"0.79rem",color:T.muted,fontFamily:T.mono}}>{new Date(note.createdAt).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}</span>
