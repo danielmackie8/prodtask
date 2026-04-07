@@ -1,4 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+
+const SUPABASE_URL = "https://cxgtrhjtvrkvrmojqvtz.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4Z3RyaGp0dnJrdnJtb2pxdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTgxOTcsImV4cCI6MjA5MTEzNDE5N30.DMMDWEDYzEMcToT3sSzCQ6eL_VkD2o4UtBGzS4A4zq4";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const T = {
   bg:       "#0f1117",
@@ -1183,7 +1187,7 @@ function NoteDetail({ note, onUpdate, onDelete, onClose }) {
   );
 }
 
-function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
+function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOut }) {
   const [page, setPage] = useState("board");
   const [colIdx, setColIdx] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
@@ -1247,6 +1251,9 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
           </div>
           {page==="board" && (
             <button onClick={()=>setShowAdd(true)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
+          )}
+          {page!=="board" && (
+            <button onClick={onSignOut} style={{fontSize:11,color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Sign out</button>
           )}
         </div>
         {/* Nav pill tabs */}
@@ -1425,17 +1432,75 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
   );
 }
 
+// ── Supabase helpers ──────────────────────────────────────────────
+async function dbLoad(table, userId) {
+  const { data } = await sb.from(table).select("id,data").eq("user_id", userId);
+  return (data || []).map(r => r.data);
+}
+async function dbUpsert(table, userId, item) {
+  await sb.from(table).upsert({ id: item.id, user_id: userId, data: item, updated_at: new Date().toISOString() });
+}
+async function dbDelete(table, id) {
+  await sb.from(table).delete().eq("id", id);
+}
+
 function loadFromStorage(key, fallback) {
   try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
 }
 
+// ── Login screen ──────────────────────────────────────────────────
+function LoginScreen() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function signInWithGoogle() {
+    setLoading(true);
+    setError("");
+    const { error } = await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin }
+    });
+    if (error) { setError(error.message); setLoading(false); }
+  }
+
+  return (
+    <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"2rem"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
+        <div style={{width:12,height:12,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 12px #4f8ef7"}}/>
+        <span style={{fontSize:"2rem",fontWeight:700,color:T.white,letterSpacing:"-0.03em"}}>TALIN</span>
+      </div>
+      <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:"1rem",padding:"2.5rem",display:"flex",flexDirection:"column",alignItems:"center",gap:"1.5rem",width:320}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:"1.1rem",fontWeight:600,color:T.white,marginBottom:"0.5rem"}}>Welcome back</div>
+          <div style={{fontSize:"0.875rem",color:T.muted}}>Sign in to access your board</div>
+        </div>
+        <button onClick={signInWithGoogle} disabled={loading} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:"0.75rem",padding:"0.75rem 1.5rem",background:T.card,border:`1px solid ${T.border}`,borderRadius:"0.5rem",cursor:"pointer",fontFamily:T.font,fontSize:"0.93rem",fontWeight:500,color:T.text,transition:"all .15s"}}
+          onMouseEnter={e=>{e.currentTarget.style.background=T.cardHov;e.currentTarget.style.borderColor=T.borderHi;}}
+          onMouseLeave={e=>{e.currentTarget.style.background=T.card;e.currentTarget.style.borderColor=T.border;}}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          {loading ? "Signing in..." : "Sign in with Google"}
+        </button>
+        {error && <div style={{fontSize:"0.79rem",color:"#f06292",textAlign:"center"}}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────
 export default function App() {
   const isMobile = useIsMobile();
+  const [session, setSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [migrating, setMigrating] = useState(false);
+
   const [page,    setPage]    = useState("board");
   const [showAdd, setShowAdd] = useState(false);
-  const [tasks,   setTasks]   = useState(() => loadFromStorage(TASKS_KEY, DEFAULT_TASKS));
-  const [roles,   setRoles]   = useState(() => loadFromStorage(ROLES_KEY, DEFAULT_ROLES));
-  const [notes,   setNotes]   = useState(() => loadFromStorage(NOTES_KEY, DEFAULT_NOTES));
+  const [tasks,   setTasksRaw]   = useState([]);
+  const [roles,   setRolesRaw]   = useState([]);
+  const [notes,   setNotesRaw]   = useState([]);
   const [activeRoleId, setActiveRoleId] = useState(null);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [sortBy, setSortBy] = useState("prio");
@@ -1443,13 +1508,118 @@ export default function App() {
   const [noteSort, setNoteSort] = useState("manual");
   const noteDragging = useRef(null);
 
-  useEffect(() => { try { localStorage.setItem(TASKS_KEY, JSON.stringify(tasks)); } catch {} }, [tasks]);
-  useEffect(() => { try { localStorage.setItem(ROLES_KEY, JSON.stringify(roles)); } catch {} }, [roles]);
-  useEffect(() => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch {} }, [notes]);
+  const userId = session?.user?.id;
 
-  if (isMobile) {
-    return <MobileApp tasks={tasks} setTasks={setTasks} roles={roles} setRoles={setRoles} notes={notes} setNotes={setNotes}/>;
+  // Auth listener
+  useEffect(() => {
+    sb.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setAuthLoading(false);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load data from Supabase on login
+  useEffect(() => {
+    if (!userId) return;
+    setDataLoading(true);
+    Promise.all([
+      dbLoad("tasks", userId),
+      dbLoad("roles", userId),
+      dbLoad("notes", userId),
+    ]).then(([t, r, n]) => {
+      // First time login — check for localStorage data to migrate
+      if (t.length === 0 && r.length === 0 && n.length === 0) {
+        const lsTasks = loadFromStorage(TASKS_KEY, []);
+        const lsRoles = loadFromStorage(ROLES_KEY, []);
+        const lsNotes = loadFromStorage(NOTES_KEY, []);
+        if (lsTasks.length > 0 || lsRoles.length > 0 || lsNotes.length > 0) {
+          setMigrating(true);
+          Promise.all([
+            ...lsTasks.map(item => dbUpsert("tasks", userId, item)),
+            ...lsRoles.map(item => dbUpsert("roles", userId, item)),
+            ...lsNotes.map(item => dbUpsert("notes", userId, item)),
+          ]).then(() => {
+            setTasksRaw(lsTasks);
+            setRolesRaw(lsRoles);
+            setNotesRaw(lsNotes);
+            localStorage.removeItem(TASKS_KEY);
+            localStorage.removeItem(ROLES_KEY);
+            localStorage.removeItem(NOTES_KEY);
+            setMigrating(false);
+            setDataLoading(false);
+          });
+          return;
+        }
+      }
+      setTasksRaw(t);
+      setRolesRaw(r);
+      setNotesRaw(n);
+      setDataLoading(false);
+    });
+  }, [userId]);
+
+  // Wrap setters to also sync to Supabase
+  function setTasks(updater) {
+    setTasksRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (userId) {
+        const prevIds = new Set(prev.map(t=>t.id));
+        const nextIds = new Set(next.map(t=>t.id));
+        next.forEach(t => { if (!prevIds.has(t.id) || JSON.stringify(prev.find(p=>p.id===t.id)) !== JSON.stringify(t)) dbUpsert("tasks", userId, t); });
+        prev.forEach(t => { if (!nextIds.has(t.id)) dbDelete("tasks", t.id); });
+      }
+      return next;
+    });
   }
+  function setRoles(updater) {
+    setRolesRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (userId) {
+        const prevIds = new Set(prev.map(r=>r.id));
+        const nextIds = new Set(next.map(r=>r.id));
+        next.forEach(r => { if (!prevIds.has(r.id) || JSON.stringify(prev.find(p=>p.id===r.id)) !== JSON.stringify(r)) dbUpsert("roles", userId, r); });
+        prev.forEach(r => { if (!nextIds.has(r.id)) dbDelete("roles", r.id); });
+      }
+      return next;
+    });
+  }
+  function setNotes(updater) {
+    setNotesRaw(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (userId) {
+        const prevIds = new Set(prev.map(n=>n.id));
+        const nextIds = new Set(next.map(n=>n.id));
+        next.forEach(n => { if (!prevIds.has(n.id) || JSON.stringify(prev.find(p=>p.id===n.id)) !== JSON.stringify(n)) dbUpsert("notes", userId, n); });
+        prev.forEach(n => { if (!nextIds.has(n.id)) dbDelete("notes", n.id); });
+      }
+      return next;
+    });
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    setTasksRaw([]); setRolesRaw([]); setNotesRaw([]);
+  }
+
+  if (authLoading) return (
+    <div style={{height:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{color:T.muted,fontFamily:T.font,fontSize:"0.93rem"}}>Loading...</div>
+    </div>
+  );
+
+  if (!session) return <LoginScreen/>;
+
+  if (dataLoading || migrating) return (
+    <div style={{height:"100vh",background:T.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"1rem"}}>
+      <div style={{width:8,height:8,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 8px #4f8ef7",animation:"pulse 1s infinite"}}/>
+      <div style={{color:T.muted,fontFamily:T.font,fontSize:"0.93rem"}}>{migrating ? "Migrating your existing data..." : "Loading your board..."}</div>
+    </div>
+  );
 
   const safeTasks = tasks.filter(Boolean);
   const stats = [
@@ -1473,6 +1643,10 @@ export default function App() {
     if (sortBy === "hm") return (a.hiringManager||"").localeCompare(b.hiringManager||"");
     return (PRIO_SORT[a.prio]??3) - (PRIO_SORT[b.prio]??3);
   });
+
+  if (isMobile) {
+    return <MobileApp tasks={tasks} setTasks={setTasks} roles={roles} setRoles={setRoles} notes={notes} setNotes={setNotes} onSignOut={signOut}/>;
+  }
 
   return (
     <div style={{ fontFamily:T.font, height:"100vh", background:T.bg, color:T.text, display:"flex", flexDirection:"column", overflow:"hidden" }}>
@@ -1506,6 +1680,10 @@ export default function App() {
               onMouseLeave={e=>e.currentTarget.style.opacity="1"}
             >+ Add task</button>
           )}
+          <button onClick={signOut} style={{fontSize:"0.79rem",color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.36rem 0.71rem",cursor:"pointer",fontFamily:T.font}}
+            onMouseEnter={e=>{e.currentTarget.style.color=T.text;e.currentTarget.style.borderColor=T.borderHi;}}
+            onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.borderColor=T.border;}}
+          >Sign out</button>
         </div>
       </div>
 
@@ -1599,7 +1777,6 @@ export default function App() {
                   )}
                   {activeNoteId==="__list__" && (
                     <div style={{display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
-                      {/* Notes list header */}
                       <div style={{padding:"1rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.card,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                         <span style={{fontSize:"1.07rem",fontWeight:600,color:T.white}}>All Notes</span>
                         <div style={{display:"flex",gap:"0.57rem",alignItems:"center"}}>
@@ -1615,9 +1792,7 @@ export default function App() {
                           <button onClick={()=>setActiveNoteId(null)} style={{fontSize:"1rem",color:T.muted,background:"transparent",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.29rem 0.5rem",cursor:"pointer",lineHeight:1}}>✕</button>
                         </div>
                       </div>
-                      {/* Notes table */}
                       <div style={{flex:1,overflowY:"auto"}}>
-                        {/* Table header */}
                         <div style={{display:"grid",gridTemplateColumns:"0.3fr 1fr 0.4fr 0.5fr",padding:"0.57rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.bg,userSelect:"none"}}>
                           <span/>
                           <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Title</span>
@@ -1632,7 +1807,7 @@ export default function App() {
                         {(noteSort==="tag"
                           ? [...notes].sort((a,b)=>(a.tag||"").localeCompare(b.tag||""))
                           : notes
-                        ).filter(n=>!noteFilterTag||n.tag===noteFilterTag).map((note,i,arr)=>{
+                        ).filter(n=>!noteFilterTag||n.tag===noteFilterTag).map((note)=>{
                           const tc = NOTE_TAG_COLORS[note.tag] || null;
                           return (
                             <div key={note.id}
