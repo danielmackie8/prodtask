@@ -56,6 +56,14 @@ const SORT_COLS = ["To Do","Waiting"];
 function sortTasks(tasks, col) {
   if(!SORT_COLS.includes(col)) return tasks;
   return [...tasks].sort((a,b)=>{
+    // Due date first — overdue/soonest first, no date goes last
+    const aHas = !!a.dueDate, bHas = !!b.dueDate;
+    if (aHas && bHas) {
+      const dateDiff = new Date(a.dueDate) - new Date(b.dueDate);
+      if (dateDiff !== 0) return dateDiff;
+    } else if (aHas) return -1;
+    else if (bHas) return 1;
+    // Then priority
     const pd = (PRIO_RANK[a.prio]??3) - (PRIO_RANK[b.prio]??3);
     if(pd!==0) return pd;
     return (TIME_RANK[a.time]??5) - (TIME_RANK[b.time]??5);
@@ -148,8 +156,11 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
     let col = column;
     if (WAIT_STATUS.includes(status) && col==="To Do") col="Waiting";
     if (!WAIT_STATUS.includes(status) && col==="Waiting") col="To Do";
-    const finalTime = col==="Waiting" ? "" : time;
-    onUpdate({...task, title, prio, time:finalTime, status, column:col, dueDate, notes, actionPoints:actions});
+    const finalTime   = col==="Waiting" || col==="Complete" ? "" : time;
+    const finalPrio   = col==="Complete" ? "" : prio;
+    const finalDue    = col==="Complete" ? "" : dueDate;
+    const finalStatus = col==="Complete" ? "Me" : status;
+    onUpdate({...task, title, prio:finalPrio, time:finalTime, status:finalStatus, column:col, dueDate:finalDue, notes, actionPoints:actions});
     onClose();
   }
   function addNote() {
@@ -450,7 +461,14 @@ function BoardPage({ tasks, setTasks }) {
     setDragOver(null);
     let c = col;
     if(WAIT_STATUS.includes(task.status) && c==="To Do") c="Waiting";
-    setTasks(p => p.map(t => t.id===task.id ? {...t, column:c, time: c==="Waiting" ? "" : t.time} : t));
+    setTasks(p => p.map(t => t.id===task.id ? {
+      ...t,
+      column: c,
+      time: c==="Waiting" ? "" : t.time,
+      prio: c==="Complete" ? "" : t.prio,
+      dueDate: c==="Complete" ? "" : t.dueDate,
+      status: c==="Complete" ? "Me" : t.status,
+    } : t));
   }
 
   return (
@@ -1169,6 +1187,7 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
   const [page, setPage] = useState("board");
   const [colIdx, setColIdx] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState(null);
   const [activeRoleId, setActiveRoleId] = useState(null);
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [noteFilterTag, setNoteFilterTag] = useState("");
@@ -1177,23 +1196,25 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
   const COLS = ["To Do","Waiting","Weekly","Complete"];
   const activeRole = roles.find(r=>r.id===activeRoleId)||null;
   const activeNote = notes.find(n=>n.id===activeNoteId)||null;
+  const activeTask = safeTasks.find(t=>t.id===activeTaskId)||null;
 
   function updateRole(updated) { setRoles(p=>p.map(r=>r.id===updated.id?updated:r)); }
   function deleteRole(id) { setRoles(p=>p.filter(r=>r.id!==id)); setActiveRoleId(null); }
   function updateNote(updated) { setNotes(p=>p.map(n=>n.id===updated.id?updated:n)); }
   function deleteNote(id) { setNotes(p=>p.filter(n=>n.id!==id)); setActiveNoteId(null); }
+  function updateTask(updated) { setTasks(p=>p.map(t=>t.id===updated.id?updated:t)); }
+  function deleteTask(id) { setTasks(p=>p.filter(t=>t.id!==id)); setActiveTaskId(null); }
 
   const PRIO_SORT = {High:0,Med:1,Low:2,"":3};
   const sortedRoles = [...roles].sort((a,b)=>(PRIO_SORT[a.prio]??3)-(PRIO_SORT[b.prio]??3));
 
   const NAV = [
-    {id:"board", icon:"⬚", label:"Board"},
-    {id:"roles", icon:"◈", label:"Roles"},
-    {id:"notes", icon:"≡", label:"Notes"},
-    {id:"ai",    icon:"✦", label:"AI"},
+    {id:"board", label:"Board"},
+    {id:"roles", label:"Roles"},
+    {id:"notes", label:"Notes"},
+    {id:"ai",    label:"AI"},
   ];
 
-  // Swipe handlers for board columns
   function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
   function onTouchEnd(e) {
     if (touchStartX.current === null) return;
@@ -1217,21 +1238,33 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
     <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;} select,input,textarea,button{font-size:inherit;font-family:inherit;}`}</style>
 
-      {/* Top bar */}
-      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"env(safe-area-inset-top, 12px) 16px 10px",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7"}}/>
-          <span style={{fontSize:16,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
+      {/* Top bar — brand + nav + add button */}
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 14px 8px",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7"}}/>
+            <span style={{fontSize:15,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
+          </div>
+          {page==="board" && (
+            <button onClick={()=>setShowAdd(true)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
+          )}
         </div>
-        {page==="board" && (
-          <button onClick={()=>setShowAdd(true)} style={{fontSize:12,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
-        )}
+        {/* Nav pill tabs */}
+        <div style={{display:"flex",background:T.bg,borderRadius:10,padding:3,gap:2}}>
+          {NAV.map(n=>(
+            <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);setActiveTaskId(null);}}
+              style={{flex:1,padding:"5px 0",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s",
+                background:page===n.id?"#181c27":"transparent",
+                color:page===n.id?"#4f8ef7":T.muted,
+                boxShadow:page===n.id?"0 1px 3px rgba(0,0,0,0.3)":"none",
+              }}>{n.label}</button>
+          ))}
+        </div>
       </div>
 
       {/* BOARD PAGE */}
       {page==="board" && (
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          {/* Column pills */}
           <div style={{padding:"8px 12px 6px",borderBottom:`1px solid ${T.border}`,display:"flex",gap:6,overflowX:"auto",flexShrink:0}}>
             {COLS.map((col,i)=>{
               const cc = COL_COLORS[col];
@@ -1244,10 +1277,8 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
             })}
           </div>
 
-          {/* Peeking columns */}
           <div style={{flex:1,display:"flex",gap:6,padding:"10px 12px",overflow:"hidden"}}
             onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            {/* Main column */}
             <div style={{flex:"0 0 78%",background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
               <div style={{padding:"8px 10px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:COL_COLORS[COLS[colIdx]].accent}}/>
@@ -1258,7 +1289,11 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
                 {colTasks.map(task=>{
                   const due = getDueDateStyle(task.dueDate);
                   return (
-                    <div key={task.id} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px",marginBottom:6}}>
+                    <div key={task.id} onClick={()=>setActiveTaskId(task.id)}
+                      style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"pointer",transition:"background .12s"}}
+                      onTouchStart={e=>e.currentTarget.style.background=T.cardHov}
+                      onTouchEnd={e=>e.currentTarget.style.background=T.card}
+                    >
                       <div style={{fontSize:12,fontWeight:500,color:T.white,marginBottom:5,lineHeight:1.3}}>{task.title}</div>
                       <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                         {task.prio && <span style={{fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:3,background:PRIO[task.prio]?.bg,color:PRIO[task.prio]?.color,textTransform:"uppercase",fontFamily:T.mono}}>{task.prio}</span>}
@@ -1273,8 +1308,6 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
                 )}
               </div>
             </div>
-
-            {/* Peek columns */}
             {COLS.filter((_,i)=>i!==colIdx).slice(0,2).map(col=>(
               <div key={col} onClick={()=>setColIdx(COLS.indexOf(col))} style={{flex:"0 0 9%",background:T.surface,borderRadius:12,border:`1px solid ${T.border}`,display:"flex",alignItems:"center",justifyContent:"center",opacity:0.55,cursor:"pointer"}}>
                 <span style={{fontSize:8,fontWeight:700,writingMode:"vertical-rl",color:COL_COLORS[col].accent,letterSpacing:"0.06em",textTransform:"uppercase"}}>{col}</span>
@@ -1361,7 +1394,7 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
       )}
       {page==="notes" && activeNoteId && activeNote && (
         <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          <div style={{padding:"10px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:10,flexShrink:0,background:T.surface}}>
+          <div style={{padding:"10px 16px",borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",flexShrink:0,background:T.surface}}>
             <button onClick={()=>setActiveNoteId(null)} style={{fontSize:13,color:"#4f8ef7",background:"none",border:"none",cursor:"pointer",padding:0}}>‹ Notes</button>
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
@@ -1377,17 +1410,12 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes }) {
         </div>
       )}
 
-      {/* Bottom pill nav */}
-      <div style={{background:T.surface,borderTop:`1px solid ${T.border}`,padding:"8px 16px env(safe-area-inset-bottom, 12px)",display:"flex",justifyContent:"center",flexShrink:0}}>
-        <div style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:28,padding:"4px 5px",display:"flex",gap:2,boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
-          {NAV.map(n=>(
-            <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);}} style={{padding:"6px 14px",borderRadius:20,border:"none",cursor:"pointer",background:page===n.id?"rgba(79,142,247,0.15)":"transparent",display:"flex",alignItems:"center",gap:5,transition:"all .15s"}}>
-              <span style={{fontSize:13,color:page===n.id?"#4f8ef7":"#4a5578"}}>{n.icon}</span>
-              {page===n.id && <span style={{fontSize:11,fontWeight:600,color:"#4f8ef7"}}>{n.label}</span>}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Task detail modal */}
+      {activeTask && (
+        <TaskModal task={activeTask} onClose={()=>setActiveTaskId(null)}
+          onUpdate={t=>{updateTask(t);}}
+          onDelete={id=>{deleteTask(id);}}/>
+      )}
 
       {/* Add task modal */}
       {showAdd && (
