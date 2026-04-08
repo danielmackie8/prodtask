@@ -300,6 +300,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
 
           <div>
             <div style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono, marginBottom:"0.86rem" }}>Action Points</div>
+            <div style={{ display:"flex", gap:"0.57rem", marginBottom:"0.71rem" }}>
               <input value={actionText} onChange={e=>setActionText(e.target.value)}
                 placeholder="Add action point…" style={{...inputStyle(), flex:1}}
                 onFocus={e=>e.target.style.borderColor=ac}
