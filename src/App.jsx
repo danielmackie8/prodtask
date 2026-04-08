@@ -1578,6 +1578,7 @@ export default function App() {
   const [migrating, setMigrating] = useState(false);
 
   const [page,    setPage]    = useState("board");
+  const [showAI,  setShowAI]  = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [tasks,   setTasksRaw]   = useState([]);
   const [roles,   setRolesRaw]   = useState([]);
@@ -1741,17 +1742,14 @@ export default function App() {
             <span style={{ fontSize:"0.93rem", fontWeight:700, color:T.white, letterSpacing:"-0.02em" }}>TALIN</span>
           </div>
           <div style={{ display:"flex", gap:2 }}>
-            {[["board","Board"],["ai","AI Assistant"]].map(([k,l])=>(
-              <button key={k} onClick={()=>setPage(k)} style={{ fontSize:"0.79rem", fontWeight: page===k?600:400, color: page===k?"#4f8ef7":T.dim, background: page===k?"rgba(79,142,247,0.10)":"none", border: page===k?"1px solid rgba(79,142,247,0.25)":"1px solid transparent", borderRadius:"0.43rem", padding:"0.29rem 0.86rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>{l}</button>
-            ))}
+            <button onClick={()=>{setShowAI(false);}} style={{ fontSize:"0.79rem", fontWeight: !showAI?600:400, color: !showAI?"#4f8ef7":T.dim, background: !showAI?"rgba(79,142,247,0.10)":"none", border: !showAI?"1px solid rgba(79,142,247,0.25)":"1px solid transparent", borderRadius:"0.43rem", padding:"0.29rem 0.86rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>Board</button>
+            <button onClick={()=>{setShowAI(v=>!v);setActiveRoleId(null);setActiveNoteId(null);}} style={{ fontSize:"0.79rem", fontWeight: showAI?600:400, color: showAI?"#4f8ef7":T.dim, background: showAI?"rgba(79,142,247,0.10)":"none", border: showAI?"1px solid rgba(79,142,247,0.25)":"1px solid transparent", borderRadius:"0.43rem", padding:"0.29rem 0.86rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>AI Assistant</button>
           </div>
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:"0.43rem" }}>
-          {page==="board" && (
-            <NavIconBtn onClick={()=>setShowAdd(true)} title="Add task">
+          <NavIconBtn onClick={()=>setShowAdd(true)} title="Add task">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </NavIconBtn>
-          )}
           <NavIconBtn onClick={toggleTheme} title={theme==="dark"?"Switch to light":"Switch to dark"}>
             {theme==="dark"
               ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -1764,15 +1762,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main content */}
-      {page==="ai" && (
-        <div style={{ flex:1, minHeight:0, overflowY:"auto", padding:"1.43rem" }}>
-          <AiPage tasks={safeTasks} setTasks={setTasks} roles={roles} notes={notes}/>
-        </div>
-      )}
-
-      {page==="board" && (
-        <div style={{ flex:1, minHeight:0, display:"flex", overflow:"hidden" }}>
+      {/* Main content — always board */}
+      <div style={{ flex:1, minHeight:0, display:"flex", overflow:"hidden" }}>
 
           {/* Role sidebar */}
           <div style={{ width:"16rem", flexShrink:0, background:T.surface, borderRight:`1px solid ${T.border}`, display:"flex", flexDirection:"column" }}>
@@ -1928,9 +1919,29 @@ export default function App() {
             {showAdd && (
               <AddModal onClose={()=>setShowAdd(false)} onAdd={t=>{setTasks(p=>[...p,t]);setShowAdd(false);}}/>
             )}
+
+            {/* AI Assistant slide-over */}
+            {showAI && (
+              <div style={{ position:"absolute", inset:0, background:"rgba(30,38,64,0.18)", zIndex:100, display:"flex", justifyContent:"flex-end" }}
+                onClick={()=>setShowAI(false)}>
+                <div onClick={e=>e.stopPropagation()} style={{ width:"60%", height:"100%", background:T.surface, borderLeft:`1px solid ${T.border}`, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+                  {/* AI panel header */}
+                  <div style={{ padding:"0.86rem 1.14rem", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+                      <div style={{ width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7" }}/>
+                      <span style={{ fontSize:"0.93rem", fontWeight:600, color:T.white }}>AI Assistant</span>
+                    </div>
+                    <button onClick={()=>setShowAI(false)} style={{ fontSize:"1rem", color:T.muted, background:"transparent", border:`1px solid ${T.border}`, borderRadius:"0.43rem", padding:"0.22rem 0.5rem", cursor:"pointer", lineHeight:1 }}>✕</button>
+                  </div>
+                  {/* AI content */}
+                  <div style={{ flex:1, minHeight:0, display:"flex", flexDirection:"column" }}>
+                    <AiPage tasks={safeTasks} setTasks={setTasks} roles={roles} notes={notes}/>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
     </div>
   );
 }
