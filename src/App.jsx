@@ -39,7 +39,7 @@ const LIGHT = {
 let T = DARK;
 
 function getTheme() {
-  try { return localStorage.getItem("talin_theme") || "dark"; } catch { return "dark"; }
+  try { return localStorage.getItem("talin_theme") || "light"; } catch { return "light"; }
 }
 function setThemeStorage(v) {
   try { localStorage.setItem("talin_theme", v); } catch {}
@@ -60,7 +60,19 @@ function useTheme() {
   return { theme, toggleTheme };
 }
 
-function ThemeToggle({ theme, toggleTheme, style = {} }) {
+function NavIconBtn({ onClick, title, children }) {
+  return (
+    <button onClick={onClick} title={title} style={{
+      width:"1.86rem", height:"1.86rem", borderRadius:"0.43rem",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      background:"none", border:`1px solid ${T.border}`,
+      cursor:"pointer", color:T.dim, transition:"all .12s", flexShrink:0,
+    }}
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHi;e.currentTarget.style.color=T.text;e.currentTarget.style.background=T.card;}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;e.currentTarget.style.background="none";}}
+    >{children}</button>
+  );
+}
   const isDark = theme === "dark";
   return (
     <button onClick={toggleTheme} title="Toggle theme" style={{
@@ -1721,38 +1733,33 @@ export default function App() {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } :root { font-size: clamp(10px, 1.05vw, 14px); } select, input, textarea, button { font-size: inherit; }`}</style>
 
       {/* Nav */}
-      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 1.4rem", height:"3.4rem", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+      <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 1.4rem", height:"3.2rem", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:"1.43rem" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:"0.57rem" }}>
-            <div style={{ width:8,height:8,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 8px #4f8ef7" }}/>
-            <span style={{ fontSize:"1rem", fontWeight:600, color:T.white, letterSpacing:"-0.02em" }}>TALIN</span>
+          <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
+            <div style={{ width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7" }}/>
+            <span style={{ fontSize:"0.93rem", fontWeight:700, color:T.white, letterSpacing:"-0.02em" }}>TALIN</span>
           </div>
           <div style={{ display:"flex", gap:2 }}>
             {[["board","Board"],["ai","AI Assistant"]].map(([k,l])=>(
-              <button key={k} onClick={()=>setPage(k)} style={{ fontSize:"0.86rem", fontWeight: page===k?600:400, color: page===k?"#4f8ef7":T.dim, background: page===k?"rgba(79,142,247,0.12)":"none", border: page===k?"1px solid rgba(79,142,247,0.3)":"1px solid transparent", borderRadius:"0.5rem", padding:"0.36rem 1rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>{l}</button>
+              <button key={k} onClick={()=>setPage(k)} style={{ fontSize:"0.79rem", fontWeight: page===k?600:400, color: page===k?"#4f8ef7":T.dim, background: page===k?"rgba(79,142,247,0.10)":"none", border: page===k?"1px solid rgba(79,142,247,0.25)":"1px solid transparent", borderRadius:"0.43rem", padding:"0.29rem 0.86rem", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}>{l}</button>
             ))}
           </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:"0.86rem" }}>
-          <div style={{ display:"flex", gap:0, background:T.card, border:`1px solid ${T.border}`, borderRadius:"0.57rem", overflow:"hidden" }}>
-            {stats.map((s,i)=>(
-              <div key={s.label} style={{ padding:"0.36rem 0.86rem", borderRight: i<stats.length-1?`1px solid ${T.border}`:"none", display:"flex", flexDirection:"column", alignItems:"center", gap:1 }}>
-                <span style={{ fontSize:"1rem", fontWeight:600, color:T.white, fontFamily:T.mono, lineHeight:1 }}>{s.val}</span>
-                <span style={{ fontSize:"0.65rem", color:T.muted, letterSpacing:"0.08em", textTransform:"uppercase" }}>{s.label}</span>
-              </div>
-            ))}
-          </div>
+        <div style={{ display:"flex", alignItems:"center", gap:"0.43rem" }}>
           {page==="board" && (
-            <button onClick={()=>setShowAdd(true)} style={{ fontSize:"0.86rem", fontWeight:600, padding:"0.5rem 1.14rem", background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)", color:T.bg, border:"none", borderRadius:"0.5rem", cursor:"pointer", fontFamily:T.font, letterSpacing:"0.02em", transition:"opacity .15s" }}
-              onMouseEnter={e=>e.currentTarget.style.opacity="0.8"}
-              onMouseLeave={e=>e.currentTarget.style.opacity="1"}
-            >+ Add task</button>
+            <NavIconBtn onClick={()=>setShowAdd(true)} title="Add task">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </NavIconBtn>
           )}
-          <ThemeToggle theme={theme} toggleTheme={toggleTheme}/>
-          <button onClick={signOut} style={{fontSize:"0.79rem",color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.36rem 0.71rem",cursor:"pointer",fontFamily:T.font}}
-            onMouseEnter={e=>{e.currentTarget.style.color=T.text;e.currentTarget.style.borderColor=T.borderHi;}}
-            onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.borderColor=T.border;}}
-          >Sign out</button>
+          <NavIconBtn onClick={toggleTheme} title={theme==="dark"?"Switch to light":"Switch to dark"}>
+            {theme==="dark"
+              ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+            }
+          </NavIconBtn>
+          <NavIconBtn onClick={signOut} title="Sign out">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </NavIconBtn>
         </div>
       </div>
 
