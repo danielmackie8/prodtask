@@ -1316,7 +1316,12 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 14px 8px",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7"}}/>
+            <svg width="16" height="16" viewBox="0 0 40 40">
+              <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
+              <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+              <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+              <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
+            </svg>
             <span style={{fontSize:15,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
           </div>
           {page==="board" && (
@@ -1547,7 +1552,12 @@ function LoginScreen() {
         <ThemeToggle theme={theme} toggleTheme={toggleTheme}/>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
-        <div style={{width:12,height:12,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 12px #4f8ef7"}}/>
+        <svg width="32" height="32" viewBox="0 0 40 40">
+          <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
+          <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+          <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+          <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
+        </svg>
         <span style={{fontSize:"2rem",fontWeight:700,color:T.white,letterSpacing:"-0.03em"}}>TALIN</span>
       </div>
       <div style={{background:T.surface,border:`1px solid ${T.border}`,borderRadius:"1rem",padding:"2.5rem",display:"flex",flexDirection:"column",alignItems:"center",gap:"1.5rem",width:320}}>
@@ -1738,7 +1748,12 @@ export default function App() {
       <div style={{ background:T.surface, borderBottom:`1px solid ${T.border}`, padding:"0 1.4rem", height:"3.2rem", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
         <div style={{ display:"flex", alignItems:"center", gap:"1.43rem" }}>
           <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
-            <div style={{ width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7" }}/>
+            <svg width="18" height="18" viewBox="0 0 40 40">
+              <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
+              <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+              <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+              <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
+            </svg>
             <span style={{ fontSize:"0.93rem", fontWeight:700, color:T.white, letterSpacing:"-0.02em" }}>TALIN</span>
           </div>
           <div style={{ display:"flex", gap:2 }}>
@@ -1928,7 +1943,12 @@ export default function App() {
                   {/* AI panel header */}
                   <div style={{ padding:"0.86rem 1.14rem", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:"0.5rem" }}>
-                      <div style={{ width:7,height:7,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 6px #4f8ef7" }}/>
+                      <svg width="16" height="16" viewBox="0 0 40 40">
+                        <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
+                        <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+                        <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+                        <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
+                      </svg>
                       <span style={{ fontSize:"0.93rem", fontWeight:600, color:T.white }}>AI Assistant</span>
                     </div>
                     <button onClick={()=>setShowAI(false)} style={{ fontSize:"1rem", color:T.muted, background:"transparent", border:`1px solid ${T.border}`, borderRadius:"0.43rem", padding:"0.22rem 0.5rem", cursor:"pointer", lineHeight:1 }}>✕</button>
