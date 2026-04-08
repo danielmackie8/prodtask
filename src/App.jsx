@@ -1315,38 +1315,42 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
       {/* Top bar — brand + nav + add button */}
       <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 14px 8px",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <svg width="16" height="16" viewBox="0 0 40 40">
-              <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
-              <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
-              <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
-              <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
-            </svg>
-            <span style={{fontSize:15,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
+          <div style={{display:"flex",alignItems:"center",gap:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <svg width="16" height="16" viewBox="0 0 40 40">
+                <rect x="4" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7"/>
+                <rect x="22" y="4" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+                <rect x="4" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.45"/>
+                <rect x="22" y="22" width="14" height="14" rx="2.5" fill="#4f8ef7" opacity="0.2"/>
+              </svg>
+              <span style={{fontSize:14,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
+            </div>
+            <div style={{display:"flex",gap:2}}>
+              {NAV.map(n=>(
+                <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);setActiveTaskId(null);}}
+                  style={{fontSize:11,fontWeight:page===n.id?600:400,padding:"4px 10px",borderRadius:6,border:page===n.id?"1px solid rgba(79,142,247,0.25)":"1px solid transparent",cursor:"pointer",transition:"all .15s",
+                    background:page===n.id?"rgba(79,142,247,0.10)":"none",
+                    color:page===n.id?"#4f8ef7":T.dim,
+                  }}>{n.label}</button>
+              ))}
+            </div>
           </div>
-          {page==="board" && (
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <ThemeToggle theme={theme} toggleTheme={toggleTheme} style={{fontSize:"0.9rem",padding:"4px 8px"}}/>
-              <button onClick={()=>setShowAdd(true)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:"#0f1117",border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
-            </div>
-          )}
-          {page!=="board" && (
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <ThemeToggle theme={theme} toggleTheme={toggleTheme} style={{fontSize:"0.9rem",padding:"4px 8px"}}/>
-              <button onClick={onSignOut} style={{fontSize:11,color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Sign out</button>
-            </div>
-          )}
-        </div>
-        {/* Nav pill tabs */}
-        <div style={{display:"flex",background:T.bg,borderRadius:10,padding:3,gap:2}}>
-          {NAV.map(n=>(
-            <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);setActiveTaskId(null);}}
-              style={{flex:1,padding:"5px 0",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s",
-                background:page===n.id?"#181c27":"transparent",
-                color:page===n.id?"#4f8ef7":T.muted,
-                boxShadow:page===n.id?"0 1px 3px rgba(0,0,0,0.3)":"none",
-              }}>{n.label}</button>
-          ))}
+          <div style={{display:"flex",gap:5,alignItems:"center"}}>
+            {page==="board" && (
+              <NavIconBtn onClick={()=>setShowAdd(true)} title="Add task">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </NavIconBtn>
+            )}
+            <NavIconBtn onClick={toggleTheme} title="Toggle theme">
+              {theme==="dark"
+                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              }
+            </NavIconBtn>
+            <NavIconBtn onClick={onSignOut} title="Sign out">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </NavIconBtn>
+          </div>
         </div>
       </div>
 
