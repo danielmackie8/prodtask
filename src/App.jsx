@@ -292,7 +292,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
               <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
               <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle(), colorScheme:"dark"}}
+                style={{...inputStyle(), cursor:"pointer", colorScheme: "light"}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
@@ -300,7 +300,6 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
 
           <div>
             <div style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono, marginBottom:"0.86rem" }}>Action Points</div>
-            <div style={{ display:"flex", gap:"0.57rem", marginBottom:"0.71rem" }}>
               <input value={actionText} onChange={e=>setActionText(e.target.value)}
                 placeholder="Add action point…" style={{...inputStyle(), flex:1}}
                 onFocus={e=>e.target.style.borderColor=ac}
@@ -398,7 +397,7 @@ function AddModal({ onClose, onAdd, defaultCol }) {
             <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
               <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
               <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle(), colorScheme:"dark"}}
+                style={{...inputStyle(), cursor:"pointer", colorScheme:"light"}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
