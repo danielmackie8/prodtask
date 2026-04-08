@@ -45,11 +45,15 @@ function setThemeStorage(v) {
   try { localStorage.setItem("talin_theme", v); } catch {}
 }
 
+// Initialise T from storage immediately so first render is correct
+T = getTheme() === "light" ? LIGHT : DARK;
+
 function useTheme() {
   const [theme, setThemeState] = useState(getTheme);
   T = theme === "light" ? LIGHT : DARK;
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
+    T = next === "light" ? LIGHT : DARK;
     setThemeState(next);
     setThemeStorage(next);
   }
@@ -60,14 +64,16 @@ function ThemeToggle({ theme, toggleTheme, style = {} }) {
   const isDark = theme === "dark";
   return (
     <button onClick={toggleTheme} title="Toggle theme" style={{
-      fontSize:"1rem", lineHeight:1, background:"none",
-      border:`1px solid ${T.border}`, borderRadius:"0.5rem",
-      padding:"0.29rem 0.57rem", cursor:"pointer", color:T.dim,
+      fontSize:"0.72rem", fontWeight:600, lineHeight:1,
+      background:"none", border:`1px solid ${T.border}`,
+      borderRadius:"0.5rem", padding:"0.29rem 0.65rem",
+      cursor:"pointer", color:T.dim, fontFamily:T.mono,
+      letterSpacing:"0.06em", textTransform:"uppercase",
       transition:"all .15s", ...style
     }}
       onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHi;e.currentTarget.style.color=T.text;}}
       onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
-    >{isDark ? "☀️" : "🌙"}</button>
+    >{isDark ? "Light" : "Dark"}</button>
   );
 }
 
@@ -173,12 +179,12 @@ function Btn({ children, onClick, accent, danger, ghost, small, disabled }) {
   );
 }
 
-const inputStyle = {
-  background:T.bg, border:`1px solid ${T.border}`, borderRadius:"0.43rem",
+function inputStyle() { return {
+  background:T.surface, border:`1px solid ${T.border}`, borderRadius:"0.43rem",
   color:T.text, fontSize:"0.93rem", padding:"0.65rem 0.86rem", fontFamily:T.font,
   outline:"none", width:"100%", boxSizing:"border-box",
   transition:"border-color .15s",
-};
+}; }
 
 function Overlay({ onDismiss, children }) {
   return (
@@ -246,7 +252,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
           <div style={{ display:"flex", gap:"0.86rem", alignItems:"flex-start" }}>
             <div style={{ width:4, borderRadius:"0.29rem", flexShrink:0, alignSelf:"stretch", background:ac, minHeight:"1.71rem" }}/>
             <input value={title} onChange={e=>setTitle(e.target.value)}
-              style={{...inputStyle, background:"transparent", border:"none", borderBottom:`1px solid ${T.border}`,
+              style={{...inputStyle(), background:"transparent", border:"none", borderBottom:`1px solid ${T.border}`,
                 borderRadius:0, fontSize:"1.21rem", fontWeight:500, padding:"0 0 8px", flex:1, color:T.white,
               }}
               onFocus={e=>e.target.style.borderBottomColor=ac}
@@ -273,7 +279,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
               <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
               <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle, colorScheme:"dark"}}
+                style={{...inputStyle(), colorScheme:"dark"}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
@@ -283,7 +289,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <div style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono, marginBottom:"0.86rem" }}>Action Points</div>
             <div style={{ display:"flex", gap:"0.57rem", marginBottom:"0.71rem" }}>
               <input value={actionText} onChange={e=>setActionText(e.target.value)}
-                placeholder="Add action point…" style={{...inputStyle, flex:1}}
+                placeholder="Add action point…" style={{...inputStyle(), flex:1}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}
                 onKeyDown={e=>e.key==="Enter"&&addAction()} />
@@ -309,7 +315,7 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <div style={{ display:"flex", gap:"0.57rem", marginBottom:"0.86rem", alignItems:"flex-start" }}>
               <textarea value={noteText} onChange={e=>setNoteText(e.target.value)}
                 placeholder="Add a note or update…"
-                style={{...inputStyle, flex:1, minHeight:"5.14rem", resize:"vertical"}}
+                style={{...inputStyle(), flex:1, minHeight:"5.14rem", resize:"vertical"}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border} />
               <Btn onClick={addNote} small>Add</Btn>
@@ -367,7 +373,7 @@ function AddModal({ onClose, onAdd, defaultCol }) {
         </div>
         <div style={{ padding:"1.29rem 1.57rem", display:"flex", flexDirection:"column", gap:"1rem" }}>
           <input ref={ref} value={title} onChange={e=>setTitle(e.target.value)}
-            placeholder="What needs doing?" style={{...inputStyle, fontSize:"1rem"}}
+            placeholder="What needs doing?" style={{...inputStyle(), fontSize:"1rem"}}
             onFocus={e=>e.target.style.borderColor=ac}
             onBlur={e=>e.target.style.borderColor=T.border}
             onKeyDown={e=>e.key==="Enter"&&add()} />
@@ -379,7 +385,7 @@ function AddModal({ onClose, onAdd, defaultCol }) {
             <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
               <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
               <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle, colorScheme:"dark"}}
+                style={{...inputStyle(), colorScheme:"dark"}}
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
@@ -820,7 +826,7 @@ function AiPage({ tasks, setTasks, roles, notes }) {
       <div style={{display:"flex",gap:"0.71rem"}}>
         <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}
           placeholder="Ask me about your tasks..." disabled={busy}
-          style={{...inputStyle,flex:1,fontSize:"0.93rem"}}
+          style={{...inputStyle(),flex:1,fontSize:"0.93rem"}}
           onFocus={e=>e.target.style.borderColor="#4f8ef7"} onBlur={e=>e.target.style.borderColor=T.border}/>
         <Btn onClick={send} accent="#4f8ef7" disabled={busy||!input.trim()}>Send</Btn>
       </div>
@@ -1290,7 +1296,7 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
   const colTasks = sortTasks(safeTasks.filter(t=>t.column===COLS[colIdx]), COLS[colIdx]);
 
   return (
-    <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
+    <div key={theme} style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;} select,input,textarea,button{font-size:inherit;font-family:inherit;}`}</style>
 
       {/* Top bar — brand + nav + add button */}
@@ -1711,7 +1717,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ fontFamily:T.font, height:"100vh", background:T.bg, color:T.text, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+    <div key={theme} style={{ fontFamily:T.font, height:"100vh", background:T.bg, color:T.text, display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; } :root { font-size: clamp(10px, 1.05vw, 14px); } select, input, textarea, button { font-size: inherit; }`}</style>
 
       {/* Nav */}
