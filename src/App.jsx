@@ -4,7 +4,7 @@ const SUPABASE_URL = "https://cxgtrhjtvrkvrmojqvtz.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4Z3RyaGp0dnJrdnJtb2pxdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTgxOTcsImV4cCI6MjA5MTEzNDE5N30.DMMDWEDYzEMcToT3sSzCQ6eL_VkD2o4UtBGzS4A4zq4";
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-const T = {
+const DARK = {
   bg:       "#0f1117",
   surface:  "#181c27",
   card:     "#1e2333",
@@ -19,6 +19,57 @@ const T = {
   font:     "'DM Sans', sans-serif",
   mono:     "'DM Mono', monospace",
 };
+
+const LIGHT = {
+  bg:       "#f4f6fb",
+  surface:  "#ffffff",
+  card:     "#ffffff",
+  cardHov:  "#eef1f8",
+  border:   "#dde2f0",
+  borderHi: "#b8c2dc",
+  muted:    "#8a96b8",
+  dim:      "#5a6785",
+  text:     "#1e2640",
+  textSoft: "#4a5578",
+  white:    "#1e2640",
+  font:     "'DM Sans', sans-serif",
+  mono:     "'DM Mono', monospace",
+};
+
+let T = DARK;
+
+function getTheme() {
+  try { return localStorage.getItem("talin_theme") || "dark"; } catch { return "dark"; }
+}
+function setThemeStorage(v) {
+  try { localStorage.setItem("talin_theme", v); } catch {}
+}
+
+function useTheme() {
+  const [theme, setThemeState] = useState(getTheme);
+  T = theme === "light" ? LIGHT : DARK;
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setThemeState(next);
+    setThemeStorage(next);
+  }
+  return { theme, toggleTheme };
+}
+
+function ThemeToggle({ theme, toggleTheme, style = {} }) {
+  const isDark = theme === "dark";
+  return (
+    <button onClick={toggleTheme} title="Toggle theme" style={{
+      fontSize:"1rem", lineHeight:1, background:"none",
+      border:`1px solid ${T.border}`, borderRadius:"0.5rem",
+      padding:"0.29rem 0.57rem", cursor:"pointer", color:T.dim,
+      transition:"all .15s", ...style
+    }}
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHi;e.currentTarget.style.color=T.text;}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
+    >{isDark ? "☀️" : "🌙"}</button>
+  );
+}
 
 const COL = {
   Weekly:   { accent:"#4f8ef7", light:"rgba(79,142,247,0.12)",  glow:"rgba(79,142,247,0.25)"  },
@@ -1187,7 +1238,7 @@ function NoteDetail({ note, onUpdate, onDelete, onClose }) {
   );
 }
 
-function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOut }) {
+function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOut, theme, toggleTheme }) {
   const [page, setPage] = useState("board");
   const [colIdx, setColIdx] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
@@ -1250,10 +1301,16 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
             <span style={{fontSize:15,fontWeight:700,color:T.white,letterSpacing:"-0.02em"}}>TALIN</span>
           </div>
           {page==="board" && (
-            <button onClick={()=>setShowAdd(true)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <ThemeToggle theme={theme} toggleTheme={toggleTheme} style={{fontSize:"0.9rem",padding:"4px 8px"}}/>
+              <button onClick={()=>setShowAdd(true)} style={{fontSize:11,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:"#0f1117",border:"none",borderRadius:8,cursor:"pointer"}}>+ Add</button>
+            </div>
           )}
           {page!=="board" && (
-            <button onClick={onSignOut} style={{fontSize:11,color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Sign out</button>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <ThemeToggle theme={theme} toggleTheme={toggleTheme} style={{fontSize:"0.9rem",padding:"4px 8px"}}/>
+              <button onClick={onSignOut} style={{fontSize:11,color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:6,padding:"4px 10px",cursor:"pointer"}}>Sign out</button>
+            </div>
           )}
         </div>
         {/* Nav pill tabs */}
@@ -1450,6 +1507,7 @@ function loadFromStorage(key, fallback) {
 
 // ── Login screen ──────────────────────────────────────────────────
 function LoginScreen() {
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -1466,6 +1524,9 @@ function LoginScreen() {
   return (
     <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"2rem"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{position:"absolute",top:16,right:16}}>
+        <ThemeToggle theme={theme} toggleTheme={toggleTheme}/>
+      </div>
       <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
         <div style={{width:12,height:12,borderRadius:"50%",background:"#4f8ef7",boxShadow:"0 0 12px #4f8ef7"}}/>
         <span style={{fontSize:"2rem",fontWeight:700,color:T.white,letterSpacing:"-0.03em"}}>TALIN</span>
@@ -1491,6 +1552,7 @@ function LoginScreen() {
 // ── Main App ──────────────────────────────────────────────────────
 export default function App() {
   const isMobile = useIsMobile();
+  const { theme, toggleTheme } = useTheme();
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(true);
@@ -1645,7 +1707,7 @@ export default function App() {
   });
 
   if (isMobile) {
-    return <MobileApp tasks={tasks} setTasks={setTasks} roles={roles} setRoles={setRoles} notes={notes} setNotes={setNotes} onSignOut={signOut}/>;
+    return <MobileApp tasks={tasks} setTasks={setTasks} roles={roles} setRoles={setRoles} notes={notes} setNotes={setNotes} onSignOut={signOut} theme={theme} toggleTheme={toggleTheme}/>;
   }
 
   return (
@@ -1680,6 +1742,7 @@ export default function App() {
               onMouseLeave={e=>e.currentTarget.style.opacity="1"}
             >+ Add task</button>
           )}
+          <ThemeToggle theme={theme} toggleTheme={toggleTheme}/>
           <button onClick={signOut} style={{fontSize:"0.79rem",color:T.muted,background:"none",border:`1px solid ${T.border}`,borderRadius:"0.5rem",padding:"0.36rem 0.71rem",cursor:"pointer",fontFamily:T.font}}
             onMouseEnter={e=>{e.currentTarget.style.color=T.text;e.currentTarget.style.borderColor=T.borderHi;}}
             onMouseLeave={e=>{e.currentTarget.style.color=T.muted;e.currentTarget.style.borderColor=T.border;}}
