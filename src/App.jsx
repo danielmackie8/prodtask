@@ -73,6 +73,7 @@ function NavIconBtn({ onClick, title, children }) {
     >{children}</button>
   );
 }
+function ThemeToggle({ theme, toggleTheme, style = {} }) {
   const isDark = theme === "dark";
   return (
     <button onClick={toggleTheme} title="Toggle theme" style={{
