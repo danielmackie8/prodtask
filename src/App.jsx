@@ -545,11 +545,26 @@ function BoardPage({ tasks, setTasks }) {
     } : t));
   }
 
+  const dragOverTask = useRef(null);
+
+  function dropOnTask(targetTask) {
+    const srcTask = dragging.current;
+    if (!srcTask || srcTask.id === targetTask.id || srcTask.column !== targetTask.column) return;
+    setTasks(prev => {
+      const next = [...prev];
+      const fromIdx = next.findIndex(t => t.id === srcTask.id);
+      const toIdx = next.findIndex(t => t.id === targetTask.id);
+      const [item] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, item);
+      return next;
+    });
+  }
+
   return (
     <div style={{ position:"relative" }}>
       <div style={{ display:"flex", gap:"0.86rem", overflowX:"auto", paddingBottom:12, alignItems:"flex-start" }}>
         {COLUMNS.map(col=>{
-          const colTasks = sortTasks(tasks.filter(t=>t.column===col), col);
+          const colTasks = tasks.filter(t=>t.column===col);
           const ac = COL[col].accent;
           const isOver = dragOver===col;
           return (
@@ -594,7 +609,9 @@ function BoardPage({ tasks, setTasks }) {
               {colTasks.map(task=>(
                 <div key={task.id} draggable
                   onDragStart={e=>{e.stopPropagation();dragging.current=task;}}
-                  onDragEnd={()=>{dragging.current=null;}}
+                  onDragEnd={()=>{dragging.current=null;dragOverTask.current=null;}}
+                  onDragOver={e=>{e.preventDefault();e.stopPropagation();dragOverTask.current=task;}}
+                  onDrop={e=>{e.stopPropagation();dropOnTask(task);}}
                   onClick={e=>{if(dragging.current)e.stopPropagation();}}>
                   <TaskCard task={task} onClick={t=>setSelected({...t})} />
                 </div>
@@ -650,6 +667,7 @@ function BoardPage({ tasks, setTasks }) {
 }
 
 const AI_MSGS_KEY = "talin_ai_msgs";
+const AI_BRIEF_KEY = "talin_last_brief";
 const DEFAULT_AI_MSGS = [{role:"assistant", text:"Hi! I can help manage your board.\n\n• Good morning\n• List all tasks\n• What's waiting?\n• HM action points"}];
 
 function AiPage({ tasks, setTasks, roles, notes }) {
@@ -659,13 +677,23 @@ function AiPage({ tasks, setTasks, roles, notes }) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const bottomRef = useRef();
+  const didBrief = useRef(false);
   useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [msgs]);
   useEffect(() => { try { localStorage.setItem(AI_MSGS_KEY, JSON.stringify(msgs.slice(-50))); } catch {} }, [msgs]);
 
-  async function send() {
-    const msg = input.trim();
+  // Auto morning brief — once per day on first open
+  useEffect(() => {
+    if (didBrief.current || busy || tasks.length === 0) return;
+    const today = new Date().toDateString();
+    const lastBrief = localStorage.getItem(AI_BRIEF_KEY);
+    if (lastBrief === today) return;
+    didBrief.current = true;
+    localStorage.setItem(AI_BRIEF_KEY, today);
+    setTimeout(() => sendMsg("Good morning"), 800);
+  }, [tasks.length]);
+
+  async function sendMsg(msg) {
     if (!msg || busy) return;
-    setInput("");
     setBusy(true);
     setMsgs(p => [...p, {role:"user", text:msg}]);
     try {
@@ -714,6 +742,7 @@ function AiPage({ tasks, setTasks, roles, notes }) {
         "- Use the Age field to flag tasks that have been in To Do or Waiting for more than 7 days.",
         "- Use the Due field to highlight overdue tasks or tasks due today/tomorrow.",
         "- Use Actions (done/total) to flag tasks with incomplete action points.",
+        "NATURAL LANGUAGE TASK CREATION: When the user says something like 'add a task to follow up with Sarah', 'remind me to send the offer letter', 'create a task for X', extract a clean task title and add it. Use context clues for priority (urgent/asap = High, etc). Default column is To Do unless they say waiting/weekly.",
         "- When asked about notes or meetings (e.g. 'what happened in my last weekly meeting', 'what did we discuss in my last 121'), find the most recent relevant entry from ALL NOTES and summarise it clearly with the date.",
         "- When asked about notes, always mention which note title and date the entry is from.",
         "CURRENT BOARD TASKS (use ONLY these):",
@@ -759,7 +788,6 @@ function AiPage({ tasks, setTasks, roles, notes }) {
           if (parsed.message) parsed.message = parsed.message.replace(/\\n/g, "\n");
           result = parsed;
         } else if (s>-1) {
-          // JSON was truncated — try to extract just the message field
           const msgMatch = cleaned.match(/"message"\s*:\s*"([\s\S]*?)(?:"\s*,|\s*"\s*}|$)/);
           if (msgMatch) {
             result.message = msgMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"');
@@ -794,6 +822,13 @@ function AiPage({ tasks, setTasks, roles, notes }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function send() {
+    const msg = input.trim();
+    if (!msg || busy) return;
+    setInput("");
+    await sendMsg(msg);
   }
 
   return (
@@ -1462,7 +1497,7 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
             <button onClick={()=>{const n={id:uid(),title:"",tag:"",entries:[],createdAt:Date.now()};setNotes(p=>[n,...p]);setActiveNoteId(n.id);}} style={{fontSize:12,fontWeight:600,padding:"5px 12px",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:8,cursor:"pointer"}}>+ New</button>
           </div>
           <div style={{flex:1,overflowY:"auto"}}>
-            {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).map(note=>{
+            {notes.filter(n=>(!noteFilterTag||n.tag===noteFilterTag)&&(!noteSearch||n.title.toLowerCase().includes(noteSearch.toLowerCase())||(n.entries||[]).some(e=>e.text.toLowerCase().includes(noteSearch.toLowerCase())))).map(note=>{
               const tc = NOTE_TAG_COLORS[note.tag]||null;
               return (
                 <div key={note.id} onClick={()=>setActiveNoteId(note.id)}
@@ -1478,7 +1513,7 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
                 </div>
               );
             })}
-            {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).length===0 && (
+            {notes.filter(n=>(!noteFilterTag||n.tag===noteFilterTag)&&(!noteSearch||n.title.toLowerCase().includes(noteSearch.toLowerCase())||(n.entries||[]).some(e=>e.text.toLowerCase().includes(noteSearch.toLowerCase())))).length===0 && (
               <div style={{padding:"2rem",textAlign:"center",fontSize:13,color:T.muted,fontStyle:"italic"}}>No notes yet</div>
             )}
           </div>
@@ -1601,7 +1636,7 @@ export default function App() {
   const [activeNoteId, setActiveNoteId] = useState(null);
   const [sortBy, setSortBy] = useState("prio");
   const [noteFilterTag, setNoteFilterTag] = useState("");
-  const [noteSort, setNoteSort] = useState("manual");
+  const [noteSearch, setNoteSearch] = useState("");
   const noteDragging = useRef(null);
 
   const userId = session?.user?.id;
@@ -1900,6 +1935,7 @@ export default function App() {
                       <div style={{padding:"1rem 1.43rem",borderBottom:`1px solid ${T.border}`,background:T.card,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                         <span style={{fontSize:"1.07rem",fontWeight:600,color:T.white}}>All Notes</span>
                         <div style={{display:"flex",gap:"0.57rem",alignItems:"center"}}>
+                          <input value={noteSearch} onChange={e=>setNoteSearch(e.target.value)} placeholder="Search notes..." style={{fontSize:"0.79rem",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.text,padding:"0.29rem 0.57rem",fontFamily:T.font,outline:"none",width:"10rem"}} onFocus={e=>e.target.style.borderColor="#4f8ef7"} onBlur={e=>e.target.style.borderColor=T.border}/>
                           <select value={noteFilterTag} onChange={e=>setNoteFilterTag(e.target.value)} style={{fontSize:"0.79rem",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.text,padding:"0.29rem 0.57rem",fontFamily:T.font,cursor:"pointer",outline:"none"}}>
                             <option value="">All tags</option>
                             {NOTE_TAGS.map(t=><option key={t} value={t}>{t}</option>)}
@@ -1921,7 +1957,7 @@ export default function App() {
                           </span>
                           <span style={{fontSize:"0.72rem",fontWeight:600,color:T.muted,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:T.mono}}>Date</span>
                         </div>
-                        {notes.filter(n=>!noteFilterTag||n.tag===noteFilterTag).length===0 && (
+                        {notes.filter(n=>(!noteFilterTag||n.tag===noteFilterTag)&&(!noteSearch||n.title.toLowerCase().includes(noteSearch.toLowerCase())||(n.entries||[]).some(e=>e.text.toLowerCase().includes(noteSearch.toLowerCase())))).length===0 && (
                           <div style={{padding:"2rem 1.43rem",fontSize:"0.93rem",color:T.muted,fontStyle:"italic",textAlign:"center"}}>No notes yet — click "+ New note" to get started</div>
                         )}
                         {(noteSort==="tag"
