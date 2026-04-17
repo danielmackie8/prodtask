@@ -504,6 +504,61 @@ function TaskCard({ task, onClick }) {
   );
 }
 
+function Confetti({ active }) {
+  const canvasRef = useRef(null);
+  const animRef = useRef(null);
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const COLORS = ["#4f8ef7","#4caf86","#f5a623","#f06292","#c084fc","#f0f4ff"];
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 100,
+      r: 4 + Math.random() * 6,
+      d: 2 + Math.random() * 3,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      tilt: Math.random() * 10 - 5,
+      tiltSpeed: 0.1 + Math.random() * 0.15,
+      angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.2,
+      shape: Math.random() > 0.5 ? "rect" : "circle",
+    }));
+    let frame = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      pieces.forEach(p => {
+        p.y += p.d;
+        p.angle += p.spin;
+        p.tilt += p.tiltSpeed;
+        ctx.save();
+        ctx.translate(p.x + p.tilt, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, 1 - p.y / canvas.height);
+        if (p.shape === "rect") {
+          ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r * 1.6);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.r/2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+      frame++;
+      if (frame < 160) animRef.current = requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    animRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [active]);
+  if (!active) return null;
+  return <canvas ref={canvasRef} style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9999}}/>;
+}
+
 function BoardPage({ tasks, setTasks }) {
   const [selected,    setSelected]    = useState(null);
   const [addingCol,   setAddingCol]   = useState(null);
@@ -527,6 +582,8 @@ function BoardPage({ tasks, setTasks }) {
       setDragOver(null);
     }
   }
+  const [showConfetti, setShowConfetti] = useState(false);
+
   function drop(col) {
     const task = dragging.current;
     if(!task) return;
@@ -535,6 +592,10 @@ function BoardPage({ tasks, setTasks }) {
     setDragOver(null);
     let c = col;
     if(WAIT_STATUS.includes(task.status) && c==="To Do") c="Waiting";
+    if(c==="Complete" && task.column!=="Complete") {
+      setShowConfetti(true);
+      setTimeout(()=>setShowConfetti(false), 2800);
+    }
     setTasks(p => p.map(t => t.id===task.id ? {
       ...t,
       column: c,
@@ -562,6 +623,7 @@ function BoardPage({ tasks, setTasks }) {
 
   return (
     <div style={{ position:"relative" }}>
+      <Confetti active={showConfetti}/>
       <div style={{ display:"flex", gap:"0.86rem", overflowX:"auto", paddingBottom:12, alignItems:"flex-start" }}>
         {COLUMNS.map(col=>{
           const colTasks = tasks.filter(t=>t.column===col);
