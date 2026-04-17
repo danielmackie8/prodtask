@@ -565,7 +565,9 @@ function BoardPage({ tasks, setTasks }) {
       <div style={{ display:"flex", gap:"0.86rem", overflowX:"auto", paddingBottom:12, alignItems:"flex-start" }}>
         {COLUMNS.map(col=>{
           const colTasks = tasks.filter(t=>t.column===col);
-          const ac = COL[col].accent;
+          const TIME_MINS = {"15m":15,"30m":30,"1h":60,"2h":120,"4h":240};
+          const totalMins = colTasks.reduce((sum,t)=>sum+(TIME_MINS[t.time]||0),0);
+          const timeLabel = totalMins === 0 ? null : totalMins < 60 ? `${totalMins}m` : totalMins % 60 === 0 ? `${totalMins/60}h` : `${Math.floor(totalMins/60)}h ${totalMins%60}m`;
           const isOver = dragOver===col;
           return (
             <div key={col}
@@ -588,6 +590,7 @@ function BoardPage({ tasks, setTasks }) {
                   <span style={{ width:8,height:8,borderRadius:"50%",background:ac,display:"inline-block", boxShadow:`0 0 6px ${ac}` }} />
                   <span style={{ fontSize:"0.86rem", fontWeight:600, color:T.white, letterSpacing:"0.03em" }}>{col}</span>
                   <span style={{ fontSize:"0.72rem", fontFamily:T.mono, fontWeight:600, background:COL[col].light, color:ac, border:`1px solid ${ac}44`, borderRadius:"0.29rem", padding:"1px 7px" }}>{colTasks.length}</span>
+                  {timeLabel && <span style={{ fontSize:"0.65rem", fontFamily:T.mono, color:T.muted, letterSpacing:"0.04em" }}>{timeLabel}</span>}
                 </div>
                 <div style={{display:"flex",gap:"0.36rem"}}>
                   {col==="Complete" && colTasks.length>0 && (
@@ -734,6 +737,11 @@ function AiPage({ tasks, setTasks, roles, notes }) {
         "  2. '📋 Due Today' section — list all To Do tasks with due date TODAY or OVERDUE. If none, say 'Nothing due today in To Do.'",
         "  3. '⏳ Waiting' section — list ALL tasks in the Waiting column grouped by '⏳ Waiting on Candidate' and '⏳ Waiting on Stakeholder'. Show each task with priority.",
         "  4. '👤 HM Action Points' section — list all outstanding HM action points grouped by role. If none, say 'No outstanding HM actions.'",
+        "- WEEKLY SUMMARY: If the user asks 'how did my week go', 'weekly summary', 'week review' or similar, respond with a structured weekly review as follows:",
+        "  1. '✅ Completed this week' — list all tasks in the Complete column. If none, say 'Nothing completed yet this week.'",
+        "  2. '📋 Still in To Do' — list To Do tasks, flagging any that are overdue (Age > 5d) as stale with ⚠️",
+        "  3. '⏳ Still Waiting' — list all Waiting tasks with who they're waiting on",
+        "  4. '📊 Summary' — one paragraph: X tasks completed, Y carried over, Z waiting. Call out anything that needs attention. Be honest if the week was light or heavy.",
         "- When listing all tasks: group them by column using headers like '📋 To Do', '⏳ Waiting', '📅 Weekly', '✅ Complete'. Under each header list the tasks as a numbered list. e.g: '1. Review Q2 candidates — High priority, 1h'",
         "- When listing waiting tasks: show two sections — '⏳ Waiting on Candidate' and '⏳ Waiting on Stakeholder', each with their tasks listed underneath. If a section is empty, omit it.",
         "- When asked about Hiring Manager action points: group by role using headers like '👤 Senior Engineer', list each outstanding action point underneath as a numbered list. End with a summary e.g. '3 outstanding action points across 2 roles.'",
@@ -860,7 +868,7 @@ function AiPage({ tasks, setTasks, roles, notes }) {
         <div ref={bottomRef}/>
       </div>
       <div style={{display:"flex",flexWrap:"wrap",gap:"0.5rem",marginBottom:"0.86rem",alignItems:"center"}}>
-        {["Good morning","List all tasks","What's waiting?","HM action points"].map(c=>(
+        {["Good morning","List all tasks","What's waiting?","HM action points","How did my week go?"].map(c=>(
           <button key={c} onClick={()=>setInput(c)} style={{fontSize:"0.79rem",padding:"0.36rem 0.86rem",borderRadius:20,background:T.card,border:`1px solid ${T.border}`,color:T.dim,cursor:"pointer",fontFamily:T.font}}
             onMouseEnter={e=>{e.currentTarget.style.borderColor="#4f8ef7";e.currentTarget.style.color="#4f8ef7";}}
             onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.color=T.dim;}}
