@@ -1324,6 +1324,18 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
     {id:"ai",    label:"AI"},
   ];
 
+  function navClick(id) {
+    setActiveRoleId(null);
+    setActiveTaskId(null);
+    if (id === "notes") {
+      setPage("board");
+      setActiveNoteId("__list__");
+    } else {
+      setActiveNoteId(null);
+      setPage(id);
+    }
+  }
+
   function onTouchStart(e) { touchStartX.current = e.touches[0].clientX; }
   function onTouchEnd(e) {
     if (touchStartX.current === null) return;
@@ -1362,10 +1374,10 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
             </div>
             <div style={{display:"flex",gap:2}}>
               {NAV.map(n=>(
-                <button key={n.id} onClick={()=>{setPage(n.id);setActiveRoleId(null);setActiveNoteId(null);setActiveTaskId(null);}}
-                  style={{fontSize:11,fontWeight:page===n.id?600:400,padding:"4px 10px",borderRadius:6,border:page===n.id?"1px solid rgba(79,142,247,0.25)":"1px solid transparent",cursor:"pointer",transition:"all .15s",
-                    background:page===n.id?"rgba(79,142,247,0.10)":"none",
-                    color:page===n.id?"#4f8ef7":T.dim,
+                <button key={n.id} onClick={()=>navClick(n.id)}
+                  style={{fontSize:11,fontWeight:(n.id==="notes"?activeNoteId:page===n.id)?600:400,padding:"4px 10px",borderRadius:6,border:(n.id==="notes"?activeNoteId:page===n.id)?"1px solid rgba(79,142,247,0.25)":"1px solid transparent",cursor:"pointer",transition:"all .15s",
+                    background:(n.id==="notes"?activeNoteId:page===n.id)?"rgba(79,142,247,0.10)":"none",
+                    color:(n.id==="notes"?activeNoteId:page===n.id)?"#4f8ef7":T.dim,
                   }}>{n.label}</button>
               ))}
             </div>
@@ -1637,7 +1649,7 @@ export default function App() {
   const [sortBy, setSortBy] = useState("prio");
   const [noteFilterTag, setNoteFilterTag] = useState("");
   const [noteSearch, setNoteSearch] = useState("");
-  const noteDragging = useRef(null);
+  const [noteSort, setNoteSort] = useState("manual");
 
   const userId = session?.user?.id;
 
@@ -1963,7 +1975,7 @@ export default function App() {
                         {(noteSort==="tag"
                           ? [...notes].sort((a,b)=>(a.tag||"").localeCompare(b.tag||""))
                           : notes
-                        ).filter(n=>!noteFilterTag||n.tag===noteFilterTag).map((note)=>{
+                        ).filter(n=>(!noteFilterTag||n.tag===noteFilterTag)&&(!noteSearch||n.title.toLowerCase().includes(noteSearch.toLowerCase())||(n.entries||[]).some(e=>e.text.toLowerCase().includes(noteSearch.toLowerCase())))).map((note)=>{
                           const tc = NOTE_TAG_COLORS[note.tag] || null;
                           return (
                             <div key={note.id}
