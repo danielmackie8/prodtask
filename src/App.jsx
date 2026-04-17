@@ -1659,7 +1659,40 @@ export default function App() {
     });
   }, [userId]);
 
-  // Wrap setters to also sync to Supabase
+  // Realtime subscriptions — live sync across tabs and devices
+  useEffect(() => {
+    if (!userId) return;
+
+    const handle = (setRaw) => (payload) => {
+      const { eventType, new: newRow, old: oldRow } = payload;
+      // Only process events for the current user
+      if (newRow && newRow.user_id && newRow.user_id !== userId) return;
+      if (oldRow && oldRow.user_id && oldRow.user_id !== userId) return;
+      setRaw(prev => {
+        if (eventType === "INSERT") {
+          if (prev.find(r => r.id === newRow.id)) return prev;
+          return [...prev, newRow.data];
+        }
+        if (eventType === "UPDATE") {
+          return prev.map(r => r.id === newRow.id ? newRow.data : r);
+        }
+        if (eventType === "DELETE") {
+          return prev.filter(r => r.id !== oldRow.id);
+        }
+        return prev;
+      });
+    };
+
+    const channel = sb.channel(`talin-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, handle(setTasksRaw))
+      .on("postgres_changes", { event: "*", schema: "public", table: "roles" }, handle(setRolesRaw))
+      .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, handle(setNotesRaw))
+      .subscribe((status) => {
+        console.log("Realtime status:", status);
+      });
+
+    return () => { sb.removeChannel(channel); };
+  }, [userId]);
   function setTasks(updater) {
     setTasksRaw(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
