@@ -626,7 +626,7 @@ function BoardPage({ tasks, setTasks }) {
       <Confetti active={showConfetti}/>
       <div style={{ display:"flex", gap:"0.86rem", overflowX:"auto", paddingBottom:12, alignItems:"flex-start" }}>
         {COLUMNS.map(col=>{
-          const colTasks = tasks.filter(t=>t.column===col);
+          const colTasks = sortTasks(tasks.filter(t=>t.column===col), col);
           const ac = COL[col].accent;
           const TIME_MINS = {"15m":15,"30m":30,"1h":60,"2h":120,"4h":240};
           const totalMins = colTasks.reduce((sum,t)=>sum+(TIME_MINS[t.time]||0),0);
