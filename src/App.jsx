@@ -677,7 +677,14 @@ function BoardPage({ tasks, setTasks }) {
                   onDragStart={e=>{e.stopPropagation();dragging.current=task;}}
                   onDragEnd={()=>{dragging.current=null;dragOverTask.current=null;}}
                   onDragOver={e=>{e.preventDefault();e.stopPropagation();dragOverTask.current=task;}}
-                  onDrop={e=>{e.stopPropagation();dropOnTask(task);}}
+                  onDrop={e=>{
+                    const src = dragging.current;
+                    if (src && src.column === task.column && src.id !== task.id) {
+                      e.stopPropagation();
+                      dropOnTask(task);
+                    }
+                    // else let it bubble up to column drop zone
+                  }}
                   onClick={e=>{if(dragging.current)e.stopPropagation();}}>
                   <TaskCard task={task} onClick={t=>setSelected({...t})} />
                 </div>
