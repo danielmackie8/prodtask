@@ -114,6 +114,11 @@ function uid() { return Math.random().toString(36).slice(2,9); }
 function fmtDate(d) {
   return new Date(d).toLocaleDateString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});
 }
+function toDateInputValue(d) {
+  const yr = d.getFullYear(), mo = String(d.getMonth()+1).padStart(2,"0"), da = String(d.getDate()).padStart(2,"0");
+  return `${yr}-${mo}-${da}`;
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate()+n); return r; }
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
@@ -189,6 +194,19 @@ function Btn({ children, onClick, accent, danger, ghost, small, disabled }) {
     onMouseEnter={e=>{if(!disabled) e.currentTarget.style.opacity="0.85";}}
     onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}
     >{children}</button>
+  );
+}
+
+function QuickDateBtn({ label, onClick }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      background:T.card, border:`1px solid ${T.border}`, borderRadius:"0.43rem",
+      color:T.textSoft, fontSize:"0.79rem", fontWeight:500, fontFamily:T.font,
+      padding:"0.65rem 0.79rem", cursor:"pointer", whiteSpace:"nowrap", transition:"all .15s",
+    }}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.color=T.text;}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.textSoft;}}
+    >{label}</button>
   );
 }
 
@@ -296,6 +314,10 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
+            <div style={{ display:"flex", gap:"0.43rem", alignSelf:"end" }}>
+              <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
+              <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+            </div>
           </div>
 
           <div>
@@ -402,6 +424,10 @@ function AddModal({ onClose, onAdd, defaultCol }) {
                 onFocus={e=>e.target.style.borderColor=ac}
                 onBlur={e=>e.target.style.borderColor=T.border}/>
             </label>
+            <div style={{ display:"flex", gap:"0.43rem", alignSelf:"end" }}>
+              <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
+              <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+            </div>
           </div>
         </div>
         <div style={{ display:"flex", justifyContent:"flex-end", gap:"0.71rem", padding:"0.86rem 1.57rem 1.29rem", borderTop:`1px solid ${T.border}`, background:T.bg }}>
