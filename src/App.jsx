@@ -242,6 +242,8 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
   const [actionText, setActionText] = useState("");
   const [notes,  setNotes]  = useState(task.notes||[]);
   const [actions,setActions]= useState(task.actionPoints||[]);
+  const [editNoteId,   setEditNoteId]   = useState(null);
+  const [editNoteText, setEditNoteText] = useState("");
   const ac = COL[column]?.accent || "#4f8ef7";
 
   function save() {
@@ -259,6 +261,11 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
     if(!noteText.trim()) return;
     setNotes([{id:uid(),text:noteText,date:Date.now()},...notes]);
     setNoteText("");
+  }
+  function saveEditNote(id) {
+    if(!editNoteText.trim()) return;
+    setNotes(notes.map(n=>n.id===id?{...n,text:editNoteText}:n));
+    setEditNoteId(null);
   }
   function addAction() {
     if(!actionText.trim()) return;
@@ -352,7 +359,8 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
                 placeholder="Add a note or update…"
                 style={{...inputStyle(), flex:1, minHeight:"5.14rem", resize:"vertical"}}
                 onFocus={e=>e.target.style.borderColor=ac}
-                onBlur={e=>e.target.style.borderColor=T.border} />
+                onBlur={e=>e.target.style.borderColor=T.border}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();addNote();}}} />
               <Btn onClick={addNote} small>Add</Btn>
             </div>
             <div style={{ display:"flex", flexDirection:"column", gap:"0.57rem" }}>
@@ -361,10 +369,26 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
                 <div key={n.id} style={{ background:T.bg, borderRadius:"0.57rem", border:`1px solid ${T.border}`, borderLeft:`3px solid ${ac}`, padding:"0.79rem 1rem" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"0.43rem" }}>
                     <span style={{ fontSize:"0.72rem", color:T.muted, fontFamily:T.mono }}>{fmtDate(n.date)}</span>
-                    <button onClick={()=>setNotes(notes.filter(x=>x.id!==n.id))}
-                      style={{ background:"none", border:"none", color:T.muted, cursor:"pointer", fontSize:"0.86rem", padding:0 }}>✕</button>
+                    <div style={{ display:"flex", gap:"0.57rem" }}>
+                      <button onClick={()=>{setEditNoteId(n.id);setEditNoteText(n.text);}} title="Edit"
+                        style={{ background:"none", border:"none", color:T.muted, cursor:"pointer", fontSize:"0.86rem", padding:0, lineHeight:1 }}>✎</button>
+                      <button onClick={()=>setNotes(notes.filter(x=>x.id!==n.id))}
+                        style={{ background:"none", border:"none", color:T.muted, cursor:"pointer", fontSize:"0.86rem", padding:0 }}>✕</button>
+                    </div>
                   </div>
-                  <div style={{ fontSize:"0.93rem", color:T.textSoft, lineHeight:1.65, whiteSpace:"pre-wrap" }}>{n.text}</div>
+                  {editNoteId===n.id ? (
+                    <div>
+                      <textarea value={editNoteText} onChange={e=>setEditNoteText(e.target.value)} autoFocus
+                        onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();saveEditNote(n.id);}if(e.key==="Escape")setEditNoteId(null);}}
+                        style={{...inputStyle(), minHeight:"4rem", resize:"vertical"}} />
+                      <div style={{ display:"flex", gap:"0.43rem", marginTop:"0.43rem", justifyContent:"flex-end" }}>
+                        <Btn onClick={()=>setEditNoteId(null)} ghost small>Cancel</Btn>
+                        <Btn onClick={()=>saveEditNote(n.id)} accent={ac} small>Save</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize:"0.93rem", color:T.textSoft, lineHeight:1.65, whiteSpace:"pre-wrap" }}>{n.text}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1010,6 +1034,8 @@ function RoleDetail({ role, onUpdate, onDelete, onClose }) {
   const [updates,     setUpdates]     = useState(role.updates || []);
   const [newAction,   setNewAction]   = useState("");
   const [newUpdate,   setNewUpdate]   = useState("");
+  const [editUpdateId,   setEditUpdateId]   = useState(null);
+  const [editUpdateText, setEditUpdateText] = useState("");
 
   function save(patch) {
     onUpdate({...role, title, status, hiringManager:hm, prio, strategyDoc, actionPoints, updates, ...patch});
@@ -1033,6 +1059,11 @@ function RoleDetail({ role, onUpdate, onDelete, onClose }) {
     if (!newUpdate.trim()) return;
     const next = [{id:uid(), text:newUpdate.trim(), date:Date.now()}, ...updates];
     setUpdates(next); setNewUpdate(""); save({updates:next});
+  }
+  function saveEditUpdate(id) {
+    if (!editUpdateText.trim()) return;
+    const next = updates.map(u=>u.id===id?{...u,text:editUpdateText}:u);
+    setUpdates(next); setEditUpdateId(null); save({updates:next});
   }
   function saveDoc() {
     setStrategyDoc(docInput); setEditingDoc(false); save({strategyDoc:docInput});
@@ -1128,7 +1159,8 @@ function RoleDetail({ role, onUpdate, onDelete, onClose }) {
             <textarea value={newUpdate} onChange={e=>setNewUpdate(e.target.value)}
               placeholder="Add an update or note..." rows={2}
               style={{flex:1,fontSize:"0.93rem",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.57rem",color:T.text,padding:"0.57rem 0.86rem",fontFamily:T.font,outline:"none",resize:"vertical"}}
-              onFocus={e=>e.target.style.borderColor="#4f8ef7"} onBlur={e=>e.target.style.borderColor=T.border}/>
+              onFocus={e=>e.target.style.borderColor="#4f8ef7"} onBlur={e=>e.target.style.borderColor=T.border}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();addUpdate();}}}/>
             <button onClick={addUpdate} style={{fontSize:"0.93rem",padding:"0.57rem 1.14rem",background:T.card,border:`1px solid ${T.border}`,color:T.textSoft,borderRadius:"0.57rem",cursor:"pointer",fontFamily:T.font,flexShrink:0}}>Add</button>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:"0.57rem"}}>
@@ -1137,9 +1169,24 @@ function RoleDetail({ role, onUpdate, onDelete, onClose }) {
               <div key={u.id} style={{background:T.bg,borderRadius:"0.57rem",border:`1px solid ${T.border}`,borderLeft:`3px solid ${sc.color}`,padding:"0.71rem 1rem"}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                   <span style={{fontSize:"0.79rem",color:T.muted,fontFamily:T.mono}}>{fmtDate(u.date)}</span>
-                  <button onClick={()=>{const next=updates.filter(x=>x.id!==u.id);setUpdates(next);save({updates:next});}} style={{fontSize:"0.79rem",background:"none",border:"none",color:T.muted,cursor:"pointer",padding:0}}>✕</button>
+                  <div style={{display:"flex",gap:"0.57rem"}}>
+                    <button onClick={()=>{setEditUpdateId(u.id);setEditUpdateText(u.text);}} title="Edit" style={{fontSize:"0.86rem",background:"none",border:"none",color:T.muted,cursor:"pointer",padding:0,lineHeight:1}}>✎</button>
+                    <button onClick={()=>{const next=updates.filter(x=>x.id!==u.id);setUpdates(next);save({updates:next});}} style={{fontSize:"0.79rem",background:"none",border:"none",color:T.muted,cursor:"pointer",padding:0}}>✕</button>
+                  </div>
                 </div>
-                <div style={{fontSize:"0.93rem",color:T.textSoft,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{u.text}</div>
+                {editUpdateId===u.id ? (
+                  <div>
+                    <textarea value={editUpdateText} onChange={e=>setEditUpdateText(e.target.value)} rows={2} autoFocus
+                      onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();saveEditUpdate(u.id);}if(e.key==="Escape")setEditUpdateId(null);}}
+                      style={{width:"100%",fontSize:"0.93rem",background:T.card,border:`1px solid ${T.borderHi}`,borderRadius:"0.43rem",color:T.text,padding:"0.57rem 0.71rem",fontFamily:T.font,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
+                    <div style={{display:"flex",gap:"0.43rem",marginTop:"0.43rem",justifyContent:"flex-end"}}>
+                      <button onClick={()=>setEditUpdateId(null)} style={{fontSize:"0.79rem",padding:"0.25rem 0.71rem",background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",fontFamily:T.font}}>Cancel</button>
+                      <button onClick={()=>saveEditUpdate(u.id)} style={{fontSize:"0.79rem",padding:"0.25rem 0.71rem",background:"#4f8ef7",border:"none",borderRadius:"0.36rem",color:T.bg,cursor:"pointer",fontFamily:T.font}}>Save</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{fontSize:"0.93rem",color:T.textSoft,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{u.text}</div>
+                )}
               </div>
             ))}
           </div>
@@ -1350,7 +1397,7 @@ function NoteDetail({ note, onUpdate, onDelete, onClose }) {
             style={{width:"100%",background:T.bg,border:`1px solid ${T.border}`,borderRadius:"0.57rem",color:T.text,padding:"0.86rem 1rem",fontFamily:T.font,fontSize:"0.93rem",lineHeight:1.7,outline:"none",resize:"vertical",boxSizing:"border-box"}}
             onFocus={e=>e.target.style.borderColor="#4f8ef7"}
             onBlur={e=>e.target.style.borderColor=T.border}
-            onKeyDown={e=>{if(e.key==="Enter"&&e.metaKey)addEntry();}}
+            onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();addEntry();}}}
           />
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:"0.43rem"}}>
             <button onClick={addEntry} style={{fontSize:"0.86rem",fontWeight:600,padding:"0.36rem 1rem",background:"linear-gradient(135deg,#4f8ef7dd,#4f8ef799)",color:T.bg,border:"none",borderRadius:"0.43rem",cursor:"pointer",fontFamily:T.font}}>Save entry</button>
@@ -1366,14 +1413,15 @@ function NoteDetail({ note, onUpdate, onDelete, onClose }) {
                 <div key={entry.id} style={{background:T.bg,border:`1px solid ${T.border}`,borderLeft:`3px solid ${tc.color}`,borderRadius:"0.57rem",padding:"0.86rem 1rem"}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"0.5rem"}}>
                     <span style={{fontSize:"0.72rem",color:T.muted,fontFamily:T.mono}}>{new Date(entry.date).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span>
-                    <div style={{display:"flex",gap:"0.43rem"}}>
-                      <button onClick={()=>{setEditingId(entry.id);setEditText(entry.text);}} style={{fontSize:"0.72rem",color:T.dim,background:"none",border:"none",cursor:"pointer",padding:0}}>Edit</button>
+                    <div style={{display:"flex",gap:"0.57rem"}}>
+                      <button onClick={()=>{setEditingId(entry.id);setEditText(entry.text);}} title="Edit" style={{fontSize:"0.86rem",color:T.dim,background:"none",border:"none",cursor:"pointer",padding:0,lineHeight:1}}>✎</button>
                       <button onClick={()=>deleteEntry(entry.id)} style={{fontSize:"0.72rem",color:"#f06292",background:"none",border:"none",cursor:"pointer",padding:0}}>Delete</button>
                     </div>
                   </div>
                   {editingId===entry.id ? (
                     <div>
-                      <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={4}
+                      <textarea value={editText} onChange={e=>setEditText(e.target.value)} rows={4} autoFocus
+                        onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();saveEdit(entry.id);}if(e.key==="Escape")setEditingId(null);}}
                         style={{width:"100%",background:T.card,border:`1px solid ${T.borderHi}`,borderRadius:"0.43rem",color:T.text,padding:"0.57rem 0.71rem",fontFamily:T.font,fontSize:"0.93rem",lineHeight:1.7,outline:"none",resize:"vertical",boxSizing:"border-box"}}/>
                       <div style={{display:"flex",gap:"0.43rem",marginTop:"0.43rem",justifyContent:"flex-end"}}>
                         <button onClick={()=>setEditingId(null)} style={{fontSize:"0.79rem",padding:"0.25rem 0.71rem",background:"none",border:`1px solid ${T.border}`,borderRadius:"0.36rem",color:T.dim,cursor:"pointer",fontFamily:T.font}}>Cancel</button>
