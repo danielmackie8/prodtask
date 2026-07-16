@@ -614,6 +614,7 @@ function BoardPage({ tasks, setTasks }) {
   const [addingCol,   setAddingCol]   = useState(null);
   const [dragOver,    setDragOver]    = useState(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [urgentOnly,  setUrgentOnly]  = useState(false);
   const dragging = useRef(null);
   const dragCounters = useRef({});
 
@@ -676,7 +677,13 @@ function BoardPage({ tasks, setTasks }) {
       <Confetti active={showConfetti}/>
       <div style={{ display:"flex", gap:"0.86rem", overflowX:"auto", paddingBottom:12, alignItems:"flex-start" }}>
         {COLUMNS.map(col=>{
-          const colTasks = sortTasks(tasks.filter(t=>t.column===col), col);
+          let colTasks = sortTasks(tasks.filter(t=>t.column===col), col);
+          if (col==="To Do" && urgentOnly) {
+            colTasks = colTasks.filter(t=>{
+              const d = getDueDateStyle(t.dueDate);
+              return d && (d.label==="Overdue" || d.label==="Today");
+            });
+          }
           const ac = COL[col].accent;
           const TIME_MINS = {"15m":15,"30m":30,"1h":60,"2h":120,"4h":240};
           const totalMins = colTasks.reduce((sum,t)=>sum+(TIME_MINS[t.time]||0),0);
@@ -714,6 +721,14 @@ function BoardPage({ tasks, setTasks }) {
                       title="Clear completed tasks"
                     >🗑</button>
                   )}
+                  {col==="To Do" && (
+                    <button onClick={()=>setUrgentOnly(u=>!u)}
+                      title={urgentOnly ? "Showing overdue/today only — click to clear" : "Show only overdue/today tasks"}
+                      style={{ background:urgentOnly?COL[col].light:"none", border:`1px solid ${urgentOnly?ac:T.border}`, color:urgentOnly?ac:T.dim, width:22, height:22, borderRadius:"0.36rem", cursor:"pointer", fontSize:"1.07rem", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", transition:"all .15s" }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor=ac;e.currentTarget.style.color=ac;}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor=urgentOnly?ac:T.border;e.currentTarget.style.color=urgentOnly?ac:T.dim;}}
+                    >!</button>
+                  )}
                   {col!=="Complete" && (
                     <button onClick={()=>setAddingCol(col)} style={{ background:"none", border:`1px solid ${T.border}`, color:T.dim, width:22, height:22, borderRadius:"0.36rem", cursor:"pointer", fontSize:"1.07rem", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", transition:"all .15s" }}
                       onMouseEnter={e=>{e.currentTarget.style.borderColor=ac;e.currentTarget.style.color=ac;}}
@@ -740,7 +755,9 @@ function BoardPage({ tasks, setTasks }) {
                 </div>
               ))}
               {colTasks.length===0 && (
-                <div style={{ textAlign:"center", padding:"1.71rem 0 1.14rem", fontSize:"0.86rem", color:T.muted, fontStyle:"italic" }}>Drop tasks here</div>
+                <div style={{ textAlign:"center", padding:"1.71rem 0 1.14rem", fontSize:"0.86rem", color:T.muted, fontStyle:"italic" }}>
+                  {col==="To Do" && urgentOnly ? "Nothing overdue or due today" : "Drop tasks here"}
+                </div>
               )}
               {col!=="Complete" && (
                 <button onClick={()=>setAddingCol(col)} style={{ width:"100%", marginTop:6, fontSize:"0.86rem", color:T.muted, background:"none", border:`1px dashed ${T.border}`, borderRadius:"0.5rem", padding:"0.57rem 0", cursor:"pointer", fontFamily:T.font, transition:"all .15s" }}
