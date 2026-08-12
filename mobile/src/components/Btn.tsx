@@ -7,6 +7,7 @@ export function Btn({
   children,
   onPress,
   accent,
+  tint,
   danger,
   ghost,
   small,
@@ -16,6 +17,7 @@ export function Btn({
   children: React.ReactNode;
   onPress: () => void;
   accent?: string;
+  tint?: string;
   danger?: boolean;
   ghost?: boolean;
   small?: boolean;
@@ -23,9 +25,10 @@ export function Btn({
   loading?: boolean;
 }) {
   const { T } = useTheme();
-  const bg = danger ? '#f0629222' : accent ? accent : ghost ? 'transparent' : T.card;
-  const col = danger ? '#f06292' : accent ? T.bg : T.textSoft;
-  const bord = danger ? '#f0629255' : accent ? 'transparent' : T.border;
+  const c = tint || (danger ? '#f06292' : null);
+  const bg = c ? `${c}22` : accent ? accent : ghost ? 'transparent' : T.card;
+  const col = c ? c : accent ? T.bg : T.textSoft;
+  const bord = c ? `${c}55` : accent ? 'transparent' : T.border;
   const isDisabled = disabled || loading;
   return (
     <Pressable

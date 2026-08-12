@@ -64,6 +64,17 @@ export function TaskDetailScreen() {
     navigation.goBack();
   }
 
+  function completeTask() {
+    setTasks((prev) =>
+      prev.map((x) =>
+        x.id === task!.id
+          ? { ...x, title, prio: '' as any, time: '' as any, status: 'Me' as any, column: 'Complete' as any, dueDate: '', notes, actionPoints: actions }
+          : x
+      )
+    );
+    navigation.goBack();
+  }
+
   function del() {
     Alert.alert('Delete task?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
@@ -175,6 +186,7 @@ export function TaskDetailScreen() {
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopWidth: 1, borderTopColor: T.border, backgroundColor: T.bg }}>
         <Btn onPress={del} danger small>Delete task</Btn>
+        <Btn onPress={completeTask} tint="#4caf86" small>Mark complete</Btn>
         <Btn onPress={save} accent={ac}>Save &amp; close</Btn>
       </View>
     </SafeAreaView>
