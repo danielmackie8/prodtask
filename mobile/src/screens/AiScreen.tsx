@@ -17,6 +17,14 @@ const QUICK = ['Good morning', 'List all tasks', "What's waiting?", 'HM action p
 
 const ANTHROPIC_KEY = process.env.EXPO_PUBLIC_ANTHROPIC_KEY || '';
 
+// TEMP DEBUG — remove once the missing-key issue is resolved
+console.log(
+  '[TALIN DEBUG] ANTHROPIC_KEY present:', !!ANTHROPIC_KEY,
+  '| length:', ANTHROPIC_KEY.length,
+  '| starts with:', JSON.stringify(ANTHROPIC_KEY.slice(0, 7)),
+  '| matching env keys:', JSON.stringify(Object.keys(process.env).filter((k) => k.toUpperCase().includes('ANTHROPIC')))
+);
+
 export function AiScreen() {
   const { T } = useTheme();
   const { tasks, roles, notes, setTasks } = useData();
