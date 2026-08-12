@@ -317,16 +317,18 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <Sel label="Priority"          value={prio}   onChange={setPrio}   options={["", ...PRIO_OPTS]} />
             <Sel label="Time estimate"     value={time}   onChange={setTime}   options={["", ...TIME_OPTS]} />
             <Sel label="Status / Waiting"  value={status} onChange={setStatus} options={STATUS_OPTS} />
-            <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
-              <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
-              <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle(), cursor:"pointer", colorScheme: "light"}}
-                onFocus={e=>e.target.style.borderColor=ac}
-                onBlur={e=>e.target.style.borderColor=T.border}/>
-            </label>
-            <div style={{ display:"flex", gap:"0.43rem", alignSelf:"end" }}>
-              <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
-              <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.71rem", alignItems:"flex-end", flexWrap:"wrap" }}>
+              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 160px", minWidth:0 }}>
+                <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
+                <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
+                  style={{...inputStyle(), cursor:"pointer", colorScheme: "light"}}
+                  onFocus={e=>e.target.style.borderColor=ac}
+                  onBlur={e=>e.target.style.borderColor=T.border}/>
+              </label>
+              <div style={{ display:"flex", gap:"0.43rem", flexShrink:0 }}>
+                <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
+                <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+              </div>
             </div>
           </div>
 
@@ -444,16 +446,18 @@ function AddModal({ onClose, onAdd, defaultCol }) {
             <Sel label="Priority"      value={prio}   onChange={setPrio}   options={PRIO_OPTS} />
             <Sel label="Time estimate" value={time}   onChange={setTime}   options={TIME_OPTS} />
             <Sel label="Status"        value={status} onChange={setStatus} options={STATUS_OPTS} />
-            <label style={{ display:"flex", flexDirection:"column", gap:5 }}>
-              <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
-              <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                style={{...inputStyle(), cursor:"pointer", colorScheme:"light"}}
-                onFocus={e=>e.target.style.borderColor=ac}
-                onBlur={e=>e.target.style.borderColor=T.border}/>
-            </label>
-            <div style={{ display:"flex", gap:"0.43rem", alignSelf:"end" }}>
-              <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
-              <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.71rem", alignItems:"flex-end", flexWrap:"wrap" }}>
+              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 160px", minWidth:0 }}>
+                <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
+                <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
+                  style={{...inputStyle(), cursor:"pointer", colorScheme:"light"}}
+                  onFocus={e=>e.target.style.borderColor=ac}
+                  onBlur={e=>e.target.style.borderColor=T.border}/>
+              </label>
+              <div style={{ display:"flex", gap:"0.43rem", flexShrink:0 }}>
+                <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
+                <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
+              </div>
             </div>
           </div>
         </div>
