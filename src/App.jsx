@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
+import { App as CapacitorApp } from "@capacitor/app";
 
 const SUPABASE_URL = "https://cxgtrhjtvrkvrmojqvtz.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4Z3RyaGp0dnJrdnJtb2pxdnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTgxOTcsImV4cCI6MjA5MTEzNDE5N30.DMMDWEDYzEMcToT3sSzCQ6eL_VkD2o4UtBGzS4A4zq4";
@@ -1525,11 +1528,11 @@ function MobileApp({ tasks, setTasks, roles, setRoles, notes, setNotes, onSignOu
   const colTasks = sortTasks(safeTasks.filter(t=>t.column===COLS[colIdx]), COLS[colIdx]);
 
   return (
-    <div key={theme} style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative"}}>
+    <div key={theme} style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",flexDirection:"column",overflow:"hidden",position:"relative",paddingBottom:"env(safe-area-inset-bottom)"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;} select,input,textarea,button{font-size:inherit;font-family:inherit;}`}</style>
 
       {/* Top bar — brand + nav + add button */}
-      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"10px 14px 8px",flexShrink:0}}>
+      <div style={{background:T.surface,borderBottom:`1px solid ${T.border}`,padding:"calc(10px + env(safe-area-inset-top)) 14px 8px",flexShrink:0}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
           <div style={{display:"flex",alignItems:"center",gap:16}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -1758,17 +1761,65 @@ function LoginScreen() {
   async function signInWithGoogle() {
     setLoading(true);
     setError("");
-    const { error } = await sb.auth.signInWithOAuth({
+
+    if (!Capacitor.isNativePlatform()) {
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) { setError(error.message); setLoading(false); }
+      return;
+    }
+
+    // Native app: Google refuses to sign in inside an embedded WebView, so
+    // open the OAuth flow in an external browser tab and catch the redirect
+    // back via the talin:// custom URL scheme (registered in Info.plist).
+    let settled = false;
+    const redirectTo = "talin://auth-callback";
+    const { data, error } = await sb.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin }
+      options: { redirectTo, skipBrowserRedirect: true },
     });
-    if (error) { setError(error.message); setLoading(false); }
+    if (error || !data?.url) {
+      setError(error?.message || "Could not start sign-in");
+      setLoading(false);
+      return;
+    }
+
+    const urlListener = await CapacitorApp.addListener("appUrlOpen", async ({ url }) => {
+      settled = true;
+      urlListener.remove();
+      browserListener.remove();
+      await Browser.close().catch(() => {});
+      const hashIdx = url.indexOf("#");
+      const queryIdx = url.indexOf("?");
+      const paramsStr = hashIdx > -1 ? url.slice(hashIdx + 1) : queryIdx > -1 ? url.slice(queryIdx + 1) : "";
+      const params = new URLSearchParams(paramsStr);
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      if (access_token && refresh_token) {
+        const { error: sessionError } = await sb.auth.setSession({ access_token, refresh_token });
+        if (sessionError) setError(sessionError.message);
+      } else {
+        setError("Sign-in did not complete. Please try again.");
+      }
+      setLoading(false);
+    });
+    const browserListener = await Browser.addListener("browserFinished", () => {
+      if (settled) return;
+      settled = true;
+      urlListener.remove();
+      browserListener.remove();
+      setLoading(false);
+    });
+
+    await Browser.open({ url: data.url });
   }
 
   return (
     <div style={{fontFamily:T.font,height:"100vh",background:T.bg,color:T.text,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:"2rem"}}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap'); *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}`}</style>
-      <div style={{position:"absolute",top:16,right:16}}>
+      <div style={{position:"absolute",top:"calc(16px + env(safe-area-inset-top))",right:16}}>
         <ThemeToggle theme={theme} toggleTheme={toggleTheme}/>
       </div>
       <div style={{display:"flex",alignItems:"center",gap:"0.75rem"}}>
