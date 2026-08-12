@@ -181,10 +181,11 @@ function Sel({ label, value, onChange, options }) {
   );
 }
 
-function Btn({ children, onClick, accent, danger, ghost, small, disabled }) {
-  const bg   = danger ? "#f0629222" : accent ? accent : ghost ? "transparent" : T.card;
-  const col  = danger ? "#f06292" : accent ? T.bg : T.textSoft;
-  const bord = danger ? "#f0629255" : accent ? "transparent" : T.border;
+function Btn({ children, onClick, accent, tint, danger, ghost, small, disabled, style }) {
+  const c    = tint || (danger ? "#f06292" : null);
+  const bg   = c ? `${c}22` : accent ? accent : ghost ? "transparent" : T.card;
+  const col  = c ? c : accent ? T.bg : T.textSoft;
+  const bord = c ? `${c}55` : accent ? "transparent" : T.border;
   return (
     <button onClick={disabled ? undefined : onClick} disabled={disabled} style={{
       background:bg, color:col, border:`1px solid ${bord}`,
@@ -192,7 +193,8 @@ function Btn({ children, onClick, accent, danger, ghost, small, disabled }) {
       fontSize: small?12:13, fontWeight:500, fontFamily:T.font,
       cursor: disabled?"not-allowed":"pointer", opacity: disabled?0.4:1,
       transition:"all .15s", whiteSpace:"nowrap",
-      ...(accent ? {backgroundImage:`linear-gradient(135deg, ${accent}ee, ${accent}99)`} : {}),
+      ...(accent && !c ? {backgroundImage:`linear-gradient(135deg, ${accent}ee, ${accent}99)`} : {}),
+      ...style,
     }}
     onMouseEnter={e=>{if(!disabled) e.currentTarget.style.opacity="0.85";}}
     onMouseLeave={e=>{e.currentTarget.style.opacity="1";}}
@@ -205,7 +207,7 @@ function QuickDateBtn({ label, onClick }) {
     <button type="button" onClick={onClick} style={{
       background:T.card, border:`1px solid ${T.border}`, borderRadius:"0.43rem",
       color:T.textSoft, fontSize:"0.79rem", fontWeight:500, fontFamily:T.font,
-      padding:"0.65rem 0.79rem", cursor:"pointer", whiteSpace:"nowrap", transition:"all .15s",
+      padding:"0.5rem 0.64rem", cursor:"pointer", whiteSpace:"nowrap", transition:"all .15s",
     }}
     onMouseEnter={e=>{e.currentTarget.style.borderColor=T.borderHi; e.currentTarget.style.color=T.text;}}
     onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.textSoft;}}
@@ -258,6 +260,10 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
     const finalDue    = col==="Complete" ? "" : dueDate;
     const finalStatus = col==="Complete" ? "Me" : status;
     onUpdate({...task, title, prio:finalPrio, time:finalTime, status:finalStatus, column:col, dueDate:finalDue, notes, actionPoints:actions});
+    onClose();
+  }
+  function completeTask() {
+    onUpdate({...task, title, prio:"", time:"", status:"Me", column:"Complete", dueDate:"", notes, actionPoints:actions});
     onClose();
   }
   function addNote() {
@@ -317,15 +323,15 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
             <Sel label="Priority"          value={prio}   onChange={setPrio}   options={["", ...PRIO_OPTS]} />
             <Sel label="Time estimate"     value={time}   onChange={setTime}   options={["", ...TIME_OPTS]} />
             <Sel label="Status / Waiting"  value={status} onChange={setStatus} options={STATUS_OPTS} />
-            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.71rem", alignItems:"flex-end", flexWrap:"wrap" }}>
-              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 160px", minWidth:0 }}>
+            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.5rem", alignItems:"flex-end" }}>
+              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 auto", minWidth:0 }}>
                 <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
                 <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                  style={{...inputStyle(), cursor:"pointer", colorScheme: "light"}}
+                  style={{...inputStyle(), cursor:"pointer", colorScheme: "light", minWidth:0}}
                   onFocus={e=>e.target.style.borderColor=ac}
                   onBlur={e=>e.target.style.borderColor=T.border}/>
               </label>
-              <div style={{ display:"flex", gap:"0.43rem", flexShrink:0 }}>
+              <div style={{ display:"flex", gap:"0.36rem", flexShrink:0 }}>
                 <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
                 <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
               </div>
@@ -400,9 +406,10 @@ function TaskModal({ task, onClose, onUpdate, onDelete }) {
           </div>
         </div>
 
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"1rem 1.71rem", borderTop:`1px solid ${T.border}`, background:T.bg }}>
-          <Btn onClick={()=>{onDelete(task.id);onClose();}} danger small>Delete task</Btn>
-          <Btn onClick={save} accent={ac}>Save &amp; close</Btn>
+        <div style={{ display:"flex", gap:"0.57rem", padding:"1rem 1.71rem", borderTop:`1px solid ${T.border}`, background:T.bg }}>
+          <Btn onClick={()=>{onDelete(task.id);onClose();}} tint="#f06292" style={{flex:1}}>Delete</Btn>
+          <Btn onClick={completeTask} tint="#4caf86" style={{flex:1}}>Complete</Btn>
+          <Btn onClick={save} tint={ac} style={{flex:1}}>Save</Btn>
         </div>
       </div>
     </Overlay>
@@ -446,15 +453,15 @@ function AddModal({ onClose, onAdd, defaultCol }) {
             <Sel label="Priority"      value={prio}   onChange={setPrio}   options={PRIO_OPTS} />
             <Sel label="Time estimate" value={time}   onChange={setTime}   options={TIME_OPTS} />
             <Sel label="Status"        value={status} onChange={setStatus} options={STATUS_OPTS} />
-            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.71rem", alignItems:"flex-end", flexWrap:"wrap" }}>
-              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 160px", minWidth:0 }}>
+            <div style={{ gridColumn:"1 / -1", display:"flex", gap:"0.5rem", alignItems:"flex-end" }}>
+              <label style={{ display:"flex", flexDirection:"column", gap:5, flex:"1 1 auto", minWidth:0 }}>
                 <span style={{ fontSize:"0.72rem", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase", color:T.muted, fontFamily:T.mono }}>Due date</span>
                 <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)}
-                  style={{...inputStyle(), cursor:"pointer", colorScheme:"light"}}
+                  style={{...inputStyle(), cursor:"pointer", colorScheme:"light", minWidth:0}}
                   onFocus={e=>e.target.style.borderColor=ac}
                   onBlur={e=>e.target.style.borderColor=T.border}/>
               </label>
-              <div style={{ display:"flex", gap:"0.43rem", flexShrink:0 }}>
+              <div style={{ display:"flex", gap:"0.36rem", flexShrink:0 }}>
                 <QuickDateBtn label="Today"    onClick={()=>setDueDate(toDateInputValue(new Date()))} />
                 <QuickDateBtn label="Tomorrow" onClick={()=>setDueDate(toDateInputValue(addDays(new Date(),1)))} />
               </div>
