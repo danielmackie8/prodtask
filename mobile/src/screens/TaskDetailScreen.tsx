@@ -187,7 +187,7 @@ export function TaskDetailScreen() {
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopWidth: 1, borderTopColor: T.border, backgroundColor: T.bg }}>
         <Btn onPress={del} danger small>Delete task</Btn>
         <Btn onPress={completeTask} tint="#4caf86" small>Mark complete</Btn>
-        <Btn onPress={save} accent={ac}>Save &amp; close</Btn>
+        <Btn onPress={save} tint={ac}>Save &amp; close</Btn>
       </View>
     </SafeAreaView>
   );
